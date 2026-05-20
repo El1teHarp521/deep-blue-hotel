@@ -19,6 +19,7 @@ import RestaurantPage from './pages/RestaurantPage';
 import EntertainmentPage from './pages/EntertainmentPage';
 import SpaPage from './pages/SpaPage';
 import ParkingPage from './pages/ParkingPage';
+import RoomDetailPage from './pages/RoomDetailPage';
 
 const Footer = ({ t }) => (
   <Box sx={{ bgcolor: '#0b0f19', color: 'white', pt: 8, pb: 4, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -132,6 +133,7 @@ function App() {
           <Route path="/entertainment" element={<EntertainmentPage t={t} />} />
           <Route path="/spa" element={<SpaPage t={t} />} />
           <Route path="/parking" element={<ParkingPage t={t} />} />
+          <Route path="/rooms/:roomType" element={<RoomDetailPage t={t} />} />
         </Routes>
       </Box>
       <Footer t={t} />

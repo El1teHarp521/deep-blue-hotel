@@ -8,6 +8,10 @@ export const translations = {
     learnMore: 'УЗНАТЬ БОЛЬШЕ',
     rent: 'АРЕНДОВАТЬ',
     book: 'ЗАБРОНИРОВАТЬ',
+    capacity: 'Вместимость',
+    includedTitle: 'Включено в проживание',
+    pricePerNight: 'Цена за ночь',
+    peopleCount: 'чел.',
 
     heroTitle: 'Стильный,\nГрандиозный,\nНевероятный',
     offerTitle: 'DeepBlue предлагает',
@@ -19,14 +23,6 @@ export const translations = {
     cardSpaTitle: 'SPA & Wellness',
     cardSpaDesc: 'Обретите внутреннюю гармонию.',
 
-    locTitle: 'РАСПОЛОЖЕНИЕ',
-    dateTitle: 'ЗАСЕЛЕНИЕ / ВЫЕЗД',
-    dateSelect: 'ВЫБЕРИТЕ ДАТЫ',
-    adults: 'ВЗРОСЛЫЕ',
-    children: 'ДЕТИ',
-    currency: 'ВАЛЮТА',
-    checkBtn: 'ПРОВЕРИТЬ ДОСТУПНОСТЬ',
-
     roomsTitle: 'Наши Номера',
     roomPenthouse: 'ПЕНТХАУСЫ SIGNATURE PENTHOUSE',
     roomPenthouseDesc: 'Мир исключительной роскоши с собственными бассейнами и панорамным остеклением.',
@@ -36,6 +32,38 @@ export const translations = {
     roomRoyalDesc: 'Эксклюзивный доступ в лаунж-зону, легкие закуски и премиальные напитки в течение дня.',
     roomStandard: 'СТАНДАРТ DEEPBLUE',
     roomStandardDesc: 'Комфорт, эргономичный дизайн и уют в каждой детали вашего пребывания.',
+
+    // ДЕТАЛИ НОМЕРОВ (ДЛЯ СТРАНИЦЫ ДЕТАЛЕЙ)
+    roomDetails: {
+      standard: {
+        title: 'СТАНДАРТ DEEPBLUE',
+        desc: 'Комфортный номер с изысканным дизайном, идеально подходящий для тех, кто ценит уединение и покой. Панорамные окна наполняют комнату естественным светом.',
+        capacity: 'До 2 человек',
+        price: '15 000 ₽',
+        included: ['Бассейн', '2 часа ПК-клуба']
+      },
+      business: {
+        title: 'БИЗНЕС-КЛАСС',
+        desc: 'Просторный и функциональный номер, спроектированный с учетом потребностей современных путешественников. Идеальная эргономика для работы и отдыха.',
+        capacity: 'До 2 человек',
+        price: '34 000 ₽',
+        included: ['Бассейн', 'Завтрак', '8 часов ПК-клуба']
+      },
+      lux: {
+        title: 'НОМЕРА ЛЮКС',
+        desc: 'Двухкомнатный люкс представительского класса. Авторская мебель, роскошная гостиная и просторная открытая терраса с панорамным видом на океан.',
+        capacity: 'До 3 человек',
+        price: '67 000 ₽',
+        included: ['Бассейн + бани', 'Полный рацион питания (завтрак, обед, ужин)', '12 часов ПК-клуба']
+      },
+      penthouse: {
+        title: 'ПЕНТХАУС SIGNATURE',
+        desc: 'Вершина роскоши и уединения. Двухуровневый пентхаус на верхнем этаже отеля с собственным инфинити-бассейном на крыше и персональным дворецким.',
+        capacity: 'До 4 человек',
+        price: '152 000 ₽',
+        included: ['Всё включено', '42 часа ПК-клуба', '1 парковочное место']
+      }
+    },
 
     restTitle: 'Ресторан DeepBlue',
     restSub: 'Легендарные гастрономические шедевры в атмосфере абсолютной роскоши.',
@@ -61,27 +89,9 @@ export const translations = {
     specialists: 'Наши специалисты',
 
     specialistsList: [
-      {
-        name: 'Алия Шарапова',
-        age: '28 лет',
-        experience: 'Стаж: 6 лет',
-        desc: 'Мастер балийского и расслабляющего массажа. Специализируется на снятии стресса, ароматерапии и холистическом восстановлении сил.',
-        img: '/images/staff-massage-1.jpg'
-      },
-      {
-        name: 'Карина Воробьева',
-        age: '32 года',
-        experience: 'Стаж: 9 лет',
-        desc: 'Эксперт по спортивному и глубокому мышечному массажу. Помогает восстановить тонус мышц, гибкость суставов и легкость во всем теле.',
-        img: '/images/staff-massage-2.jpg'
-      },
-      {
-        name: 'Даниил Царев',
-        age: '30 лет',
-        experience: 'Стаж: 7 лет',
-        desc: 'Специалист по аюрведическим ритуалам и термальной терапии. Создает индивидуальные спа-программы для гармонии ума и тела.',
-        img: '/images/staff-massage-3.jpg'
-      }
+      { name: 'Алия Шарапова', age: '28 лет', experience: 'Стаж: 6 лет', desc: 'Мастер балийского и расслабляющего массажа. Специализируется на снятии стресса, ароматерапии и холистическом восстановлении сил.', img: '/images/staff-massage-1.jpg' },
+      { name: 'Карина Воробьева', age: '32 года', experience: 'Стаж: 9 лет', desc: 'Эксперт по спортивному и глубокому мышечному массажу. Помогает восстановить тонус мышц, гибкость суставов и легкость во всем теле.', img: '/images/staff-massage-2.jpg' },
+      { name: 'Даниил Царев', age: '30 лет', experience: 'Стаж: 7 лет', desc: 'Специалист по аюрведическим ритуалам и термальной терапии. Создает индивидуальные спа-программы для гармонии ума и тела.', img: '/images/staff-massage-3.jpg' }
     ],
 
     parkTitle: 'Парковка DeepBlue',
@@ -106,6 +116,10 @@ export const translations = {
     learnMore: 'LEARN MORE',
     rent: 'RENT',
     book: 'BOOK NOW',
+    capacity: 'Capacity',
+    includedTitle: 'Included in Stay',
+    pricePerNight: 'Price per night',
+    peopleCount: 'people',
 
     heroTitle: 'Stylish,\nGrandiose,\nIncredible',
     offerTitle: 'DeepBlue Offers',
@@ -117,14 +131,6 @@ export const translations = {
     cardSpaTitle: 'SPA & Wellness',
     cardSpaDesc: 'Find your inner balance and harmony.',
 
-    locTitle: 'LOCATION',
-    dateTitle: 'CHECK-IN / CHECK-OUT',
-    dateSelect: 'SELECT DATES',
-    adults: 'ADULTS',
-    children: 'CHILDREN',
-    currency: 'CURRENCY',
-    checkBtn: 'CHECK AVAILABILITY',
-
     roomsTitle: 'Our Rooms',
     roomPenthouse: 'SIGNATURE PENTHOUSE SUITES',
     roomPenthouseDesc: 'A world of ultimate luxury with private pools and floor-to-ceiling panoramic windows.',
@@ -134,6 +140,38 @@ export const translations = {
     roomRoyalDesc: 'Exclusive lounge access, complimentary afternoon tea, and premium evening drinks.',
     roomStandard: 'DEEPBLUE STANDARD',
     roomStandardDesc: 'Comfort, ergonomic design, and supreme luxury in every detail of your stay.',
+
+    // ROOM DETAILS (EN)
+    roomDetails: {
+      standard: {
+        title: 'DEEPBLUE STANDARD',
+        desc: 'A comfortable room with a refined design, ideal for those who value privacy and peace. Floor-to-ceiling windows fill the space with warm natural light.',
+        capacity: 'Up to 2 people',
+        price: '$150',
+        included: ['Swimming Pool', '2 hours of Cyber Arena access']
+      },
+      business: {
+        title: 'BUSINESS CLASS',
+        desc: 'Spacious and highly functional room tailored to the needs of modern global travelers. Features perfect ergonomics for both work and deep relaxation.',
+        capacity: 'Up to 2 people',
+        price: '$340',
+        included: ['Swimming Pool', 'Luxury Breakfast', '8 hours of Cyber Arena access']
+      },
+      lux: {
+        title: 'LUXURY SUITES',
+        desc: 'Executive-class two-room suite. Features custom furniture, a grand living room, and a massive private terrace with breathtaking ocean views.',
+        capacity: 'Up to 3 people',
+        price: '$670',
+        included: ['Thermal Pool + Saunas', 'All-inclusive Dining (Breakfast, Lunch, Dinner)', '12 hours of Cyber Arena access']
+      },
+      penthouse: {
+        title: 'SIGNATURE PENTHOUSE',
+        desc: 'The absolute pinnacle of luxury and ultimate privacy. A two-level top-floor penthouse with a private infinity pool and 24/7 personal butler service.',
+        capacity: 'Up to 4 people',
+        price: '$1,520',
+        included: ['Ultra All Inclusive', '42 hours of Cyber Arena access', '1 VIP Private Parking Spot']
+      }
+    },
 
     restTitle: 'DeepBlue Restaurant',
     restSub: 'Legendary culinary masterpieces in an atmosphere of pure luxury.',
@@ -159,27 +197,9 @@ export const translations = {
     specialists: 'Our Specialists',
 
     specialistsList: [
-      {
-        name: 'Alia Sharapova',
-        age: '28 years old',
-        experience: 'Exp: 6 years',
-        desc: 'Master of Balinese and relaxing massage. Specializes in stress relief, aromatherapy, and holistic recovery.',
-        img: '/images/staff-massage-1.jpg'
-      },
-      {
-        name: 'Karina Vorobieva',
-        age: '32 years old',
-        experience: 'Exp: 9 years',
-        desc: 'Expert in sports and deep tissue massage. Helps restore muscle tone, joint flexibility, and overall body lightness.',
-        img: '/images/staff-massage-2.jpg'
-      },
-      {
-        name: 'Daniil Tsarev',
-        age: '30 years old',
-        experience: 'Exp: 7 years',
-        desc: 'Specialist in Ayurvedic rituals and thermal therapy. Creates customized spa programs for mind and body harmony.',
-        img: '/images/staff-massage-3.jpg'
-      }
+      { name: 'Alia Sharapova', age: '28 years old', experience: 'Exp: 6 years', desc: 'Master of Balinese and relaxing massage. Specializes in stress relief, aromatherapy, and holistic recovery.', img: '/images/staff-massage-1.jpg' },
+      { name: 'Karina Vorobieva', age: '32 years old', experience: 'Exp: 9 years', desc: 'Expert in sports and deep tissue massage. Helps restore muscle tone, joint flexibility, and overall body lightness.', img: '/images/staff-massage-2.jpg' },
+      { name: 'Daniil Tsarev', age: '30 years old', experience: 'Exp: 7 years', desc: 'Specialist in Ayurvedic rituals and thermal therapy. Creates customized spa programs for mind and body harmony.', img: '/images/staff-massage-3.jpg' }
     ],
 
     parkTitle: 'DeepBlue Parking',
