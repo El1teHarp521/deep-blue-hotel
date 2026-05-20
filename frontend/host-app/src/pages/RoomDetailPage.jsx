@@ -2,16 +2,14 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, Typography, CardMedia, Button, Paper, Divider, IconButton, List, ListItem, ListItemText } from '@mui/material';
 
-// БЕЗОПАСНЫЙ ИМПОРТ ИКОНОК
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import CheckIcon from '@mui/icons-material/Check'; // Заменили на стандартную галочку
+import CheckIcon from '@mui/icons-material/Check';
 
 export default function RoomDetailPage({ t }) {
   const { roomType } = useParams();
   const navigate = useNavigate();
 
-  // Описание картинок под каждый тип номера
   const gallery = {
     standard: ['/images/room-standard-1.jpg', '/images/room-standard-2.jpg', '/images/room-standard-3.jpg', '/images/room-standard-4.jpg'],
     business: ['/images/room-business-1.jpg', '/images/room-business-2.jpg', '/images/room-business-3.jpg', '/images/room-business-4.jpg', '/images/room-business-5.jpg'],
@@ -39,12 +37,9 @@ export default function RoomDetailPage({ t }) {
           ← НАЗАД К СПИСКУ НОМЕРОВ
         </Button>
 
-        {/* ДВУХКОЛОНОЧНЫЙ ЛЕЙАУТ */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 6 }}>
           
-          {/* ЛЕВАЯ КОЛОНКА (Слайдер, описание, включенные услуги) */}
           <Box>
-            {/* СЛАЙДЕР БЕЗ КРУГЛЫХ УГЛОВ */}
             <Paper sx={{ position: 'relative', height: 600, overflow: 'hidden', mb: 6, borderRadius: 0 }}>
               <CardMedia 
                 component="img" 
@@ -71,7 +66,6 @@ export default function RoomDetailPage({ t }) {
               </Typography>
             </Paper>
 
-            {/* Включено в проживание */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', mb: 3, fontWeight: 'bold', color: 'text.primary' }}>{t.includedTitle}</Typography>
               <List>
@@ -85,7 +79,6 @@ export default function RoomDetailPage({ t }) {
             </Paper>
           </Box>
 
-          {/* ПРАВАЯ КОЛОНКА (Песочная карточка с ценой - липкая) */}
           <Box sx={{ position: 'sticky', top: 180, alignSelf: 'start' }}>
             <Paper sx={{ p: 5, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper', textAlign: 'center', borderRadius: 0 }}>
               <Typography variant="caption" sx={{ letterSpacing: 2, display: 'block', mb: 1, color: 'text.secondary' }}>{t.pricePerNight}</Typography>

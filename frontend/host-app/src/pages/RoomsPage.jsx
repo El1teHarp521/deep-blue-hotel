@@ -43,7 +43,7 @@ export default function RoomsPage({ t }) {
                 <Button 
                   variant="contained" 
                   fullWidth
-                  onClick={() => navigate(`/rooms/${room.id}`)} // Навигация на страницу деталей
+                  onClick={() => navigate(`/rooms/${room.id}`)}
                   sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0, boxShadow: 0, '&:hover': { bgcolor: '#a68a64' } }}
                 >
                   {t.learnMore}
