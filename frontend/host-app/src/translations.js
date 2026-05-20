@@ -13,9 +13,24 @@ export const translations = {
     pricePerNight: 'Цена за ночь',
     peopleCount: 'чел.',
 
+    // Фильтры
+    searchPlaceholder: 'Поиск по названию номера...',
+    categoryLabel: 'Категория',
+    allCategories: 'Все категории',
+    categoryStandard: 'Стандарт',
+    categoryBusiness: 'Бизнес',
+    categoryLux: 'Люкс',
+    categoryPenthouse: 'Пентхаус',
+    priceFrom: 'Цена от',
+    priceTo: 'Цена до',
+    datePlaceholder: 'Выберите дату',
+    statusLabel: 'Статус на выбранную дату',
+    statusFree: 'Свободен',
+    statusOccupied: 'Занят',
+
     heroTitle: 'Стильный,\nГрандиозный,\nНевероятный',
     offerTitle: 'DeepBlue предлагает',
-    offerSub: 'DeepBlue — это сочетание роскошного отдыха, современной архитектуры и уникальной атмосферы The Palm.',
+    offerSub: 'DeepBlue — это сочетание роскошного отдыха, современной архитектуры и уникальной атмосферы The Palm. Наслаждайтесь премиальными номерами, авторской кухней, SPA-зонами и развлечениями мирового уровня.',
     cardHotelTitle: 'Курорт DeepBlue',
     cardHotelDesc: 'Станьте гостем новой легенды.',
     cardRestTitle: 'Гастрономия',
@@ -33,34 +48,34 @@ export const translations = {
     roomStandard: 'СТАНДАРТ DEEPBLUE',
     roomStandardDesc: 'Комфорт, эргономичный дизайн и уют в каждой детали вашего пребывания.',
 
-    // ДЕТАЛИ НОМЕРОВ (ДЛЯ СТРАНИЦЫ ДЕТАЛЕЙ)
+    // ДЕТАЛИ НОМЕРОВ
     roomDetails: {
       standard: {
         title: 'СТАНДАРТ DEEPBLUE',
         desc: 'Комфортный номер с изысканным дизайном, идеально подходящий для тех, кто ценит уединение и покой. Панорамные окна наполняют комнату естественным светом.',
         capacity: 'До 2 человек',
-        price: '15 000 ₽',
+        priceRub: 15000,
         included: ['Бассейн', '2 часа ПК-клуба']
       },
       business: {
         title: 'БИЗНЕС-КЛАСС',
         desc: 'Просторный и функциональный номер, спроектированный с учетом потребностей современных путешественников. Идеальная эргономика для работы и отдыха.',
         capacity: 'До 2 человек',
-        price: '34 000 ₽',
+        priceRub: 34000,
         included: ['Бассейн', 'Завтрак', '8 часов ПК-клуба']
       },
       lux: {
         title: 'НОМЕРА ЛЮКС',
         desc: 'Двухкомнатный люкс представительского класса. Авторская мебель, роскошная гостиная и просторная открытая терраса с панорамным видом на океан.',
         capacity: 'До 3 человек',
-        price: '67 000 ₽',
+        priceRub: 67000,
         included: ['Бассейн + бани', 'Полный рацион питания (завтрак, обед, ужин)', '12 часов ПК-клуба']
       },
       penthouse: {
         title: 'ПЕНТХАУС SIGNATURE',
         desc: 'Вершина роскоши и уединения. Двухуровневый пентхаус на верхнем этаже отеля с собственным инфинити-бассейном на крыше и персональным дворецким.',
         capacity: 'До 4 человек',
-        price: '152 000 ₽',
+        priceRub: 152000,
         included: ['Всё включено', '42 часа ПК-клуба', '1 парковочное место']
       }
     },
@@ -105,7 +120,23 @@ export const translations = {
     footerContacts: 'Контакты',
     footerAddress: 'Адрес',
     footerAddressText: 'г. Дубай, квартал Пальма Джебель Али',
-    footerCopyright: '© 2026 Deep Blue Hotel. Все права защищены.'
+    footerCopyright: '© 2026 Deep Blue Hotel. Все права защищены.',
+
+    loginTitle: 'Вход в систему',
+    registerTitle: 'Регистрация',
+    emailOrPhone: 'Номер телефона или Email',
+    password: 'Пароль',
+    firstName: 'Имя',
+    lastName: 'Фамилия',
+    country: 'Страна проживания',
+    phone: 'Номер телефона',
+    email: 'Email',
+    haveAccount: 'Есть аккаунт?',
+    noAccount: 'Нет аккаунта?',
+    createAccount: 'Создать аккаунт',
+    signInBtn: 'Войти',
+    googleSignIn: 'Войти через Google',
+    googleSignUp: 'Зарегистрироваться через Google'
   },
   EN: {
     rooms: 'Rooms',
@@ -121,9 +152,23 @@ export const translations = {
     pricePerNight: 'Price per night',
     peopleCount: 'people',
 
+    searchPlaceholder: 'Search rooms by name...',
+    categoryLabel: 'Category',
+    allCategories: 'All categories',
+    categoryStandard: 'Standard',
+    categoryBusiness: 'Business',
+    categoryLux: 'Luxury',
+    categoryPenthouse: 'Penthouse',
+    priceFrom: 'Min Price',
+    priceTo: 'Max Price',
+    datePlaceholder: 'Select date',
+    statusLabel: 'Status on chosen date',
+    statusFree: 'Available',
+    statusOccupied: 'Occupied',
+
     heroTitle: 'Stylish,\nGrandiose,\nIncredible',
     offerTitle: 'DeepBlue Offers',
-    offerSub: 'DeepBlue is a combination of luxury relaxation, modern architecture, and the unique atmosphere of The Palm.',
+    offerSub: 'DeepBlue is a combination of luxury relaxation, modern architecture, and the unique atmosphere of The Palm. Enjoy premium rooms, signature cuisine, SPA areas, and world-class entertainment.',
     cardHotelTitle: 'DeepBlue Resort',
     cardHotelDesc: 'Become a guest of a new legend.',
     cardRestTitle: 'Gastronomy',
@@ -141,34 +186,34 @@ export const translations = {
     roomStandard: 'DEEPBLUE STANDARD',
     roomStandardDesc: 'Comfort, ergonomic design, and supreme luxury in every detail of your stay.',
 
-    // ROOM DETAILS (EN)
+    // Room Details
     roomDetails: {
       standard: {
         title: 'DEEPBLUE STANDARD',
         desc: 'A comfortable room with a refined design, ideal for those who value privacy and peace. Floor-to-ceiling windows fill the space with warm natural light.',
         capacity: 'Up to 2 people',
-        price: '$150',
+        priceRub: 15000,
         included: ['Swimming Pool', '2 hours of Cyber Arena access']
       },
       business: {
         title: 'BUSINESS CLASS',
         desc: 'Spacious and highly functional room tailored to the needs of modern global travelers. Features perfect ergonomics for both work and deep relaxation.',
         capacity: 'Up to 2 people',
-        price: '$340',
+        priceRub: 34000,
         included: ['Swimming Pool', 'Luxury Breakfast', '8 hours of Cyber Arena access']
       },
       lux: {
         title: 'LUXURY SUITES',
         desc: 'Executive-class two-room suite. Features custom furniture, a grand living room, and a massive private terrace with breathtaking ocean views.',
         capacity: 'Up to 3 people',
-        price: '$670',
+        priceRub: 67000,
         included: ['Thermal Pool + Saunas', 'All-inclusive Dining (Breakfast, Lunch, Dinner)', '12 hours of Cyber Arena access']
       },
       penthouse: {
         title: 'SIGNATURE PENTHOUSE',
         desc: 'The absolute pinnacle of luxury and ultimate privacy. A two-level top-floor penthouse with a private infinity pool and 24/7 personal butler service.',
         capacity: 'Up to 4 people',
-        price: '$1,520',
+        priceRub: 152000,
         included: ['Ultra All Inclusive', '42 hours of Cyber Arena access', '1 VIP Private Parking Spot']
       }
     },
@@ -213,6 +258,22 @@ export const translations = {
     footerContacts: 'Contacts',
     footerAddress: 'Address',
     footerAddressText: 'Dubai, Palm Jebel Ali district',
-    footerCopyright: '© 2026 Deep Blue Hotel. All rights reserved.'
+    footerCopyright: '© 2026 Deep Blue Hotel. All rights reserved.',
+
+    loginTitle: 'Sign In',
+    registerTitle: 'Register',
+    emailOrPhone: 'Phone number or Email',
+    password: 'Password',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    country: 'Country of Residence',
+    phone: 'Phone Number',
+    email: 'Email',
+    haveAccount: 'Already have an account?',
+    noAccount: "Don't have an account?",
+    createAccount: 'Create Account',
+    signInBtn: 'Sign In',
+    googleSignIn: 'Sign in with Google',
+    googleSignUp: 'Sign up with Google'
   }
 };

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, Typography, CardMedia, Button, Paper, Divider, IconButton, List, ListItem, ListItemText } from '@mui/material';
-
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CheckIcon from '@mui/icons-material/Check';
+import { formatPrice } from '../utils/price';
 
-export default function RoomDetailPage({ t }) {
+export default function RoomDetailPage({ t, currency, lang }) {
   const { roomType } = useParams();
   const navigate = useNavigate();
 
@@ -34,7 +34,7 @@ export default function RoomDetailPage({ t }) {
     <Box sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Button onClick={() => navigate('/rooms')} sx={{ mb: 4, color: 'text.secondary', fontWeight: 'bold' }}>
-          ← НАЗАД К СПИСКУ НОМЕРОВ
+          ← {lang === 'RU' ? 'НАЗАД К СПИСКУ' : 'BACK TO LIST'}
         </Button>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 6 }}>
@@ -54,7 +54,6 @@ export default function RoomDetailPage({ t }) {
               </IconButton>
             </Paper>
 
-            {/* Описание */}
             <Paper sx={{ p: 5, mb: 6, borderRadius: 0 }}>
               <Typography variant="h3" sx={{ fontFamily: 'Playfair Display', mb: 3, color: 'text.primary' }}>{details.title}</Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 2, mb: 4 }}>
@@ -83,7 +82,7 @@ export default function RoomDetailPage({ t }) {
             <Paper sx={{ p: 5, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper', textAlign: 'center', borderRadius: 0 }}>
               <Typography variant="caption" sx={{ letterSpacing: 2, display: 'block', mb: 1, color: 'text.secondary' }}>{t.pricePerNight}</Typography>
               <Typography variant="h2" color="secondary" sx={{ fontWeight: 'bold', mb: 4 }}>
-                {details.price}
+                {formatPrice(details.priceRub, currency, lang)}
               </Typography>
               <Button 
                 variant="contained" 

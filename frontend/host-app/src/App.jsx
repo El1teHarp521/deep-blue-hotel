@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box, Typography, IconButton, MenuItem, Select, Container, Divider } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, Typography, Button, IconButton, Stack, MenuItem, Select, Container, Divider } from '@mui/material';
 
-// ИМПОРТ ИКОНОК
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -12,26 +11,23 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { getCustomTheme } from './theme';
 import { translations } from './translations';
 
-// ИМПОРТ СТРАНИЦ
 import HomePage from './pages/HomePage';
 import RoomsPage from './pages/RoomsPage';
+import RoomDetailPage from './pages/RoomDetailPage';
 import RestaurantPage from './pages/RestaurantPage';
 import EntertainmentPage from './pages/EntertainmentPage';
 import SpaPage from './pages/SpaPage';
 import ParkingPage from './pages/ParkingPage';
-import RoomDetailPage from './pages/RoomDetailPage';
+import AuthModal from './components/AuthModal';
 
 const Footer = ({ t }) => (
   <Box sx={{ bgcolor: '#0b0f19', color: 'white', pt: 8, pb: 4, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
     <Container maxWidth="xl">
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr 1fr' }, gap: 8, mb: 6 }}>
-        
-        {/* Описание */}
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1 }}>{t.footerAbout}</Typography>
           <Typography variant="body2" sx={{ color: 'grey.500', lineHeight: 1.8 }}>{t.footerAboutText}</Typography>
         </Box>
-
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1 }}>{t.footerContacts}</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -45,7 +41,6 @@ const Footer = ({ t }) => (
             </Box>
           </Box>
         </Box>
-
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1 }}>{t.footerAddress}</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, color: 'grey.500' }}>
@@ -54,17 +49,13 @@ const Footer = ({ t }) => (
           </Box>
         </Box>
       </Box>
-
       <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', my: 4 }} />
-
-      <Typography variant="body2" align="center" sx={{ color: 'grey.600' }}>
-        {t.footerCopyright}
-      </Typography>
+      <Typography variant="body2" align="center" sx={{ color: 'grey.600' }}>{t.footerCopyright}</Typography>
     </Container>
   </Box>
 );
 
-const Header = ({ mode, toggleTheme, lang, setLang, t }) => {
+const Header = ({ mode, toggleTheme, lang, setLang, currency, setCurrency, t, setOpenAuth }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === '/';
@@ -78,31 +69,36 @@ const Header = ({ mode, toggleTheme, lang, setLang, t }) => {
   ];
 
   return (
-    <Box sx={{ 
-      position: 'fixed', top: 0, width: '100%', zIndex: 1100, 
-      color: 'white', background: 'rgba(1, 10, 25, 0.85)', backdropFilter: 'blur(15px)', 
-      borderBottom: '1px solid rgba(255,255,255,0.08)' 
-    }}>
+    <Box sx={{ position: 'fixed', top: 0, width: '100%', zIndex: 1100, color: 'white', background: 'rgba(1, 10, 25, 0.85)', backdropFilter: 'blur(15px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <Container maxWidth="xl">
-        {/* ВЕРХНИЙ РЯД */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', pb: 1, pt: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Select value={lang} onChange={(e) => setLang(e.target.value)} variant="standard" disableUnderline sx={{ color: 'white', fontWeight: 700 }}>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Select value={lang} onChange={(e) => setLang(e.target.value)} variant="standard" disableUnderline sx={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}>
               <MenuItem value="RU">RU</MenuItem>
               <MenuItem value="EN">EN</MenuItem>
             </Select>
+            <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.2)', my: 0.5 }} />
+            <Select value={currency} onChange={(e) => setCurrency(e.target.value)} variant="standard" disableUnderline sx={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}>
+              <MenuItem value="RUB">RUB (₽)</MenuItem>
+              <MenuItem value="USD">USD ($)</MenuItem>
+              <MenuItem value="AED">AED</MenuItem>
+            </Select>
           </Box>
+
           <Typography onClick={() => navigate('/')} variant="h4" sx={{ flex: 1, textAlign: 'center', fontWeight: 500, letterSpacing: 12, cursor: 'pointer', fontFamily: 'Playfair Display' }}>
             DEEPBLUE
           </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
             <IconButton onClick={toggleTheme} color="inherit" size="small">
               {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
             </IconButton>
+            <Button variant="outlined" color="inherit" onClick={() => setOpenAuth(true)} sx={{ borderRadius: 0, px: 3, fontWeight: 'bold' }}>
+              {lang === 'RU' ? 'ЛОГИН' : 'LOGIN'}
+            </Button>
           </Box>
         </Box>
-
-        {/* НИЖНИЙ РЯД */}
         <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 8, py: 2 }}>
           {navItems.map((item) => (
             <Typography key={item.path} onClick={() => navigate(item.path)} sx={{ fontSize: '0.75rem', letterSpacing: 3, cursor: 'pointer', fontWeight: 700, opacity: location.pathname === item.path ? 1 : 0.6, borderBottom: location.pathname === item.path ? '1px solid white' : 'none', pb: 0.5, '&:hover': { opacity: 1, color: '#C5A059' } }}>
@@ -118,24 +114,28 @@ const Header = ({ mode, toggleTheme, lang, setLang, t }) => {
 function App() {
   const [mode, setMode] = useState('dark');
   const [lang, setLang] = useState('RU');
+  const [currency, setCurrency] = useState('RUB');
+  const [openAuth, setOpenAuth] = useState(false);
+
   const theme = getCustomTheme(mode);
   const t = translations[lang];
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Header mode={mode} toggleTheme={() => setMode(m => m === 'light' ? 'dark' : 'light')} lang={lang} setLang={setLang} t={t} />
+      <Header mode={mode} toggleTheme={() => setMode(m => m === 'light' ? 'dark' : 'light')} lang={lang} setLang={setLang} currency={currency} setCurrency={setCurrency} t={t} setOpenAuth={setOpenAuth} />
       <Box sx={{ minHeight: '80vh' }}>
         <Routes>
           <Route path="/" element={<HomePage t={t} />} />
-          <Route path="/rooms" element={<RoomsPage t={t} />} />
+          <Route path="/rooms" element={<RoomsPage t={t} currency={currency} lang={lang} />} />
+          <Route path="/rooms/:roomType" element={<RoomDetailPage t={t} currency={currency} lang={lang} />} />
           <Route path="/restaurants" element={<RestaurantPage t={t} />} />
           <Route path="/entertainment" element={<EntertainmentPage t={t} />} />
           <Route path="/spa" element={<SpaPage t={t} />} />
           <Route path="/parking" element={<ParkingPage t={t} />} />
-          <Route path="/rooms/:roomType" element={<RoomDetailPage t={t} />} />
         </Routes>
       </Box>
+      <AuthModal open={openAuth} onClose={() => setOpenAuth(false)} t={t} />
       <Footer t={t} />
     </ThemeProvider>
   );
