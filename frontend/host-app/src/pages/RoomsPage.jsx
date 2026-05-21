@@ -6,14 +6,12 @@ import { formatPrice } from '../utils/price';
 export default function RoomsPage({ t, currency, lang }) {
   const navigate = useNavigate();
 
-  // Состояния фильтрации 
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('all');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [checkDate, setCheckDate] = useState('');
 
-  // Базовые номера с числовыми ценами в рублях
   const rooms = [
     { id: 'standard', title: t.roomStandard, img: '/images/room-standard-1.jpg', d: t.roomStandardDesc, priceRub: 15000, category: 'standard', reservedDates: ['2026-05-20', '2026-05-25'] },
     { id: 'business', title: t.roomRoyal, img: '/images/room-business-1.jpg', d: t.roomRoyalDesc, priceRub: 34000, category: 'business', reservedDates: ['2026-05-21'] },
@@ -23,13 +21,13 @@ export default function RoomsPage({ t, currency, lang }) {
 
   // ЛОГИКА ФИЛЬТРАЦИИ И ПОИСКА
   const filteredRooms = rooms.filter((room) => {
-    // 1. Поиск по названию 
+    // 1. Поиск по названию
     const matchesSearch = room.title.toLowerCase().includes(searchTerm.toLowerCase());
 
     // 2. Фильтр по категориям
     const matchesCategory = category === 'all' || room.category === category;
 
-    // 3. Фильтр по цене 
+    // 3. Фильтр по цен
     const priceInRub = room.priceRub;
     const usdToRubRate = 90;
 
@@ -42,7 +40,6 @@ export default function RoomsPage({ t, currency, lang }) {
     return matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice;
   });
 
-  // Функция проверки статуса на выбранную дату
   const getAvailabilityStatus = (room) => {
     if (!checkDate) return null;
     const isOccupied = room.reservedDates.includes(checkDate);
@@ -100,7 +97,7 @@ export default function RoomsPage({ t, currency, lang }) {
               </Select>
             </Box>
 
-            {/* 3. Цена От (В долларах $) */}
+            {/* 3. Цена От  */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.priceFrom} ($)</Typography>
               <TextField 
@@ -114,7 +111,7 @@ export default function RoomsPage({ t, currency, lang }) {
               />
             </Box>
 
-            {/* 4. Цена До (В долларах $) */}
+            {/* 4. Цена До */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.priceTo} ($)</Typography>
               <TextField 

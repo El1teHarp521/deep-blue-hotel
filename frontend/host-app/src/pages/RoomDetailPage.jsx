@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, Typography, CardMedia, Button, Paper, Divider, IconButton, List, ListItem, ListItemText } from '@mui/material';
+
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CheckIcon from '@mui/icons-material/Check';
@@ -54,6 +55,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </IconButton>
             </Paper>
 
+            {/* Описание */}
             <Paper sx={{ p: 5, mb: 6, borderRadius: 0 }}>
               <Typography variant="h3" sx={{ fontFamily: 'Playfair Display', mb: 3, color: 'text.primary' }}>{details.title}</Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 2, mb: 4 }}>
@@ -65,6 +67,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Typography>
             </Paper>
 
+            {/* Включено в проживание */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', mb: 3, fontWeight: 'bold', color: 'text.primary' }}>{t.includedTitle}</Typography>
               <List>
@@ -78,6 +81,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
             </Paper>
           </Box>
 
+          {/* ПРАВАЯ КОЛОНКА */}
           <Box sx={{ position: 'sticky', top: 180, alignSelf: 'start' }}>
             <Paper sx={{ p: 5, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper', textAlign: 'center', borderRadius: 0 }}>
               <Typography variant="caption" sx={{ letterSpacing: 2, display: 'block', mb: 1, color: 'text.secondary' }}>{t.pricePerNight}</Typography>

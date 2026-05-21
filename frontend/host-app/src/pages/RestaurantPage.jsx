@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Box, Container, Typography, CardMedia, Paper, IconButton } from '@mui/material';
+import { Box, Container, Typography, CardMedia, Paper } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import IconButton from '@mui/material/IconButton';
 
 export default function RestaurantPage({ t }) {
-  // Массив фотографий ресторана
   const restaurantImages = [
     '/images/service-restaurant-1.jpg',
     '/images/service-restaurant-2.jpg',
@@ -24,7 +24,6 @@ export default function RestaurantPage({ t }) {
   return (
     <Box sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
-        
         <Paper sx={{ 
           position: 'relative', 
           p: 0, 
@@ -70,7 +69,6 @@ export default function RestaurantPage({ t }) {
             <ArrowForwardIosIcon sx={{ fontSize: 18 }} />
           </IconButton>
 
-          {/* ТОЧКИ-ИНДИКАТОРЫ */}
           <Box sx={{ 
             position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
             display: 'flex', gap: 1.5, zIndex: 5
@@ -89,7 +87,6 @@ export default function RestaurantPage({ t }) {
           </Box>
         </Paper>
 
-        {/* ТЕКСТОВЫЕ БЛОКИ */}
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Typography variant="h2" color="text.primary" sx={{ mb: 2, fontFamily: 'Playfair Display' }}>
             {t.restTitle}
@@ -99,7 +96,6 @@ export default function RestaurantPage({ t }) {
           </Typography>
         </Box>
 
-        {/* Время работы */}
         <Box sx={{ 
           display: 'grid', 
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, 

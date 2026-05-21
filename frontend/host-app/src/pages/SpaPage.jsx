@@ -16,8 +16,8 @@ export default function SpaPage({ t }) {
         <Paper sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 0, mb: 10 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.2fr 1fr' }, gap: 6, alignItems: 'center' }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <CardMedia component="img" image="/images/service-spa-1.jpg" height="350" />
-              <CardMedia component="img" image="/images/service-spa-2.jpg" height="350" />
+              <CardMedia component="img" image="/images/service-spa-1.jpg" height="350" sx={{ borderRadius: 0 }} />
+              <CardMedia component="img" image="/images/service-spa-2.jpg" height="350" sx={{ borderRadius: 0 }} />
             </Box>
             <Box sx={{ pl: { lg: 4 } }}>
               <Typography variant="h3" sx={{ mb: 3, color: 'text.primary', fontFamily: 'Playfair Display' }}>{t.poolTitle}</Typography>
@@ -49,7 +49,7 @@ export default function SpaPage({ t }) {
                  {t.learnMore}
                </Button>
             </Box>
-            <CardMedia component="img" image="/images/service-spa-3.jpg" height="550" />
+            <CardMedia component="img" image="/images/service-spa-3.jpg" height="550" sx={{ borderRadius: 0 }} />
           </Box>
         </Paper>
 

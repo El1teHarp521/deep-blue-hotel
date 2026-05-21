@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import GoogleIcon from '@mui/icons-material/Google';
+import axios from 'axios';
 
 export default function AuthModal({ open, onClose, t }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -29,8 +30,15 @@ export default function AuthModal({ open, onClose, t }) {
     onClose();
   };
 
-  const handleGoogleAuth = () => {
-    alert('Инициализация Google OAuth 2.0...');
+  // ИНИЦИАЛИЗАЦИЯ ВХОДА ЧЕРЕЗ GOOGLE
+  const handleGoogleAuth = async () => {
+    try {
+      const response = await axios.get('http://localhost:3003/api/auth/google/url');
+      window.location.href = response.data.url;
+    } catch (error) {
+      console.error('Ошибка получения OAuth ссылки:', error);
+      alert('Сервис авторизации временно недоступен');
+    }
   };
 
   return (
@@ -162,7 +170,6 @@ export default function AuthModal({ open, onClose, t }) {
             {isLogin ? t.signInBtn : t.createAccount}
           </Button>
 
-          {/* РАЗДЕЛИТЕЛЬ ДЛЯ GOOGLE */}
           <Divider sx={{ my: 3, color: 'text.secondary', fontSize: '0.8rem' }}>OR</Divider>
 
           {/* Кнопка Google */}

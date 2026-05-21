@@ -12,6 +12,7 @@ export const formatPrice = (priceInRub, currency, lang) => {
     AED: ' AED'
   };
 
+  // Конвертируем цену
   const converted = Math.round(priceInRub * rates[currency]);
 
   const formattedNumber = converted.toLocaleString(lang === 'RU' ? 'ru-RU' : 'en-US');
