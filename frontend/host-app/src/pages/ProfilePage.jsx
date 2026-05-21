@@ -10,18 +10,25 @@ import { formatPrice } from '../utils/price';
 
 export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const navigate = useNavigate();
-  const [tabValue, setTabValue] = useState('profile');
+
+  const [tabValue, setTabValue] = useState(() => {
+    return localStorage.getItem('profileActiveTab') || 'profile';
+  });
+
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
 
+  // Стейты пополнения баланса
   const [openRefillModal, setOpenRefillModal] = useState(false);
   const [refillAmount, setRefillAmount] = useState('');
   const [cvc, setCvc] = useState('');
   const [useLinkedCard, setUseLinkedCard] = useState(false);
 
+  // Свойства новой карты при пополнении
   const [newCardNumber, setNewCardNumber] = useState('');
   const [newExpireDate, setNewExpireDate] = useState('');
 
+  // Личные данные и привязанные карты
   const [profileData, setProfileData] = useState({ firstName: '', lastName: '', phone: '', country: '' });
   const [cardNumber, setCardNumber] = useState('');
   const [expireDate, setExpireDate] = useState('');
@@ -29,22 +36,46 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const [transactions, setTransactions] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
 
+  // Реальные данные активного бронирования и купленных услуг
   const [activeBooking, setActiveBooking] = useState(null);
   const [myServices, setMyServices] = useState([]); 
   const [myMassages, setMyMassages] = useState([]);  
 
+  // Стейты задач и уборок
   const [cleaningStatus, setCleaningStatus] = useState([]); 
   const [employeeTasks, setEmployeeTasks] = useState({ schedules: [], assignedCleanings: [] }); 
   const [adminTasks, setAdminTasks] = useState({ cleaningRequests: [], schedules: [] }); 
 
+  // Реальные данные постояльцев из базы данных
   const [guestsLog, setGuestsLog] = useState([]);
 
+  // Стейты для административного управления отелем
   const [adminRooms, setAdminRooms] = useState([]);
   const [adminBookings, setAdminBookings] = useState([]);
 
   const inputStyle = {
     '& .MuiOutlinedInput-root': { borderRadius: 0 }
   };
+
+  useEffect(() => {
+    if (user) {
+      const allowedTabs = ['profile'];
+      if (user.role === 'Guest' || user.role === 'Admin') {
+        allowedTabs.push('balance', 'active', 'transactions');
+      }
+      if (user.role === 'Employee' || user.role === 'Admin') {
+        allowedTabs.push('employee_tasks', 'guests_log');
+      }
+      if (user.role === 'Admin') {
+        allowedTabs.push('admin');
+      }
+
+      if (!allowedTabs.includes(tabValue)) {
+        setTabValue('profile');
+        localStorage.setItem('profileActiveTab', 'profile');
+      }
+    }
+  }, [user, tabValue]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -334,6 +365,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     }
   };
 
+  // Вычисление динамического статуса номера
   const getRoomStatusLabel = (room) => {
     if (room.status === 'Maintenance') {
       return lang === 'RU' ? 'Обслуживание' : 'Maintenance';
@@ -424,7 +456,15 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         {alert && <Alert severity={alert.type} sx={{ borderRadius: 0, mb: 4 }} onClose={() => setAlert(null)}>{alert.text}</Alert>}
 
         <Paper sx={{ borderRadius: 0, mb: 6 }}>
-          <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} textColor="primary" indicatorColor="primary">
+          <Tabs 
+            value={tabValue} 
+            onChange={(e, val) => {
+              setTabValue(val);
+              localStorage.setItem('profileActiveTab', val);
+            }} 
+            textColor="primary" 
+            indicatorColor="primary"
+          >
             <Tab label={t.tabProfile} value="profile" sx={{ fontWeight: 'bold' }} />
             {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label={t.tabBalance} value="balance" sx={{ fontWeight: 'bold' }} />}
             {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label={t.tabActive} value="active" sx={{ fontWeight: 'bold' }} />}
@@ -435,7 +475,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Tabs>
         </Paper>
 
-        {/* --- данные профиля --- */}
+        {/* данные профиля */}
         {tabValue === 'profile' && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Box component="form" onSubmit={handleSaveProfile}>
@@ -472,7 +512,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* --- баланс + карта --- */}
+        {/* баланс карты*/}
         {tabValue === 'balance' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' }, gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
@@ -504,7 +544,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- активные услуги --- */}
+        {/* активные услуги */}
         {tabValue === 'active' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -579,6 +619,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               )}
             </Paper>
 
+            {/* Статус уборки */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{lang === 'RU' ? 'Запросы на уборку' : 'Cleaning Requests'}</Typography>
               {cleaningStatus.map(req => (
@@ -602,16 +643,16 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- история транзакций--- */}
+        {/* история транзакций */}
         {tabValue === 'transactions' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
             <Table>
-              <TableHead sx={{ bgcolor: 'primary.main' }}>
+              <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
                 <TableRow>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transType}</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transAmount}</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transDate}</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transDesc}</TableCell>
+                  <TableCell>{t.transType}</TableCell>
+                  <TableCell>{t.transAmount}</TableCell>
+                  <TableCell>{t.transDate}</TableCell>
+                  <TableCell>{t.transDesc}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -628,7 +669,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/* --- задачи сотрудников --- */}
+        {/* задачи сотрудника*/}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -661,19 +702,19 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- учет постояльцев --- */}
+        {/* --- Вучет постояльцев --- */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.guestLoggingTitle}</Typography>
             <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
               <Table>
-                <TableHead sx={{ bgcolor: 'primary.main' }}>
+                <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
                   <TableRow>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Имя' : 'First Name'}</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Фамилия' : 'Last Name'}</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Номер комнаты' : 'Room Number'}</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Даты проживания' : 'Stay Dates'}</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                    <TableCell>{lang === 'RU' ? 'Имя' : 'First Name'}</TableCell>
+                    <TableCell>{lang === 'RU' ? 'Фамилия' : 'Last Name'}</TableCell>
+                    <TableCell>{lang === 'RU' ? 'Номер комнаты' : 'Room Number'}</TableCell>
+                    <TableCell>{lang === 'RU' ? 'Даты проживания' : 'Stay Dates'}</TableCell>
+                    <TableCell>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -704,7 +745,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* --- панель админа --- */}
+        {/* админ панель*/}
         {tabValue === 'admin' && user?.role === 'Admin' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             {/* Карточка 1: Управление пользователями */}
@@ -712,13 +753,13 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.userManagementTitle}</Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 300 }}>
                 <Table stickyHeader>
-                  <TableHead sx={{ bgcolor: 'primary.main' }}>
+                  <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold' }}>User</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Balance</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Current Role</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
+                      <TableCell>User</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Balance</TableCell>
+                      <TableCell>Current Role</TableCell>
+                      <TableCell>Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -743,20 +784,20 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               </TableContainer>
             </Paper>
 
-            {/* Карточка 2: Управление номерным фондом */}
+            {/* Карточка 2: Управление номерным фондом  */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
                 {lang === 'RU' ? 'Управление отелем (Цены и статусы номеров)' : 'Hotel Rooms Management (Prices & Statuses)'}
               </Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 350 }}>
                 <Table stickyHeader>
-                  <TableHead>
+                  <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Номер' : 'Room Number'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Категория' : 'Category'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Текущая цена за ночь' : 'Price per Night'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Статус' : 'Status'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Действия' : 'Actions'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Номер' : 'Room Number'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Категория' : 'Category'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Текущая цена за ночь' : 'Price per Night'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Статус' : 'Status'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Действия' : 'Actions'}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -804,14 +845,14 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               </Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 350 }}>
                 <Table stickyHeader>
-                  <TableHead>
+                  <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Постоялец / Гость' : 'Guest'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Номер' : 'Room'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Даты заселения' : 'Stay Dates'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Оплата' : 'Payment'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Статус брони' : 'Status'}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Действия' : 'Actions'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Постоялец / Гость' : 'Guest'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Номер' : 'Room'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Даты заселения' : 'Stay Dates'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Оплата' : 'Payment'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Статус брони' : 'Status'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Действия' : 'Actions'}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -882,7 +923,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         )}
       </Container>
 
-      {/* --- модальное окно баланса --- */}
+      {/* модал окно пополнения баланса */}
       <Dialog 
         open={openRefillModal} 
         onClose={() => setOpenRefillModal(false)}
