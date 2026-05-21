@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, Box, Typography, 
-  TextField, Button, Stack, Divider, IconButton 
+  TextField, Button, Stack, Divider, IconButton, Alert 
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import GoogleIcon from '@mui/icons-material/Google';
@@ -9,7 +9,7 @@ import axios from 'axios';
 
 export default function AuthModal({ open, onClose, t }) {
   const [isLogin, setIsLogin] = useState(true);
-
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -24,10 +24,41 @@ export default function AuthModal({ open, onClose, t }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(isLogin ? 'Успешный вход!' : 'Успешная регистрация!');
-    onClose();
+    setError(null);
+
+    try {
+      if (isLogin) {
+        // --- 1. ЛОГИКА ВХОДА ---
+        const response = await axios.post('http://localhost:3003/api/auth/login', {
+          loginInput: formData.loginInput,
+          password: formData.password
+        });
+        
+        if (response.data.success) {
+          window.location.reload();
+          onClose();
+        }
+      } else {
+        // --- 2. ЛОГИКА РЕГИСТРАЦИИ  ---
+        const response = await axios.post('http://localhost:3003/api/auth/register', {
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          country: formData.country
+        });
+
+        if (response.data.success) {
+          window.location.reload();
+          onClose();
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Произошла ошибка. Проверьте введенные данные.');
+    }
   };
 
   // ИНИЦИАЛИЗАЦИЯ ВХОДА ЧЕРЕЗ GOOGLE
@@ -37,7 +68,7 @@ export default function AuthModal({ open, onClose, t }) {
       window.location.href = response.data.url;
     } catch (error) {
       console.error('Ошибка получения OAuth ссылки:', error);
-      alert('Сервис авторизации временно недоступен');
+      setError('Сервис авторизации Google временно недоступен');
     }
   };
 
@@ -70,6 +101,12 @@ export default function AuthModal({ open, onClose, t }) {
       </DialogTitle>
 
       <DialogContent sx={{ pb: 2 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 0 }}>
+            {error}
+          </Alert>
+        )}
+
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
           {isLogin ? (
             // --- ПОЛЯ ДЛЯ ВХОДА ---
@@ -133,6 +170,7 @@ export default function AuthModal({ open, onClose, t }) {
                 fullWidth
                 label={t.phone}
                 name="phone"
+                placeholder="+7..."
                 value={formData.phone}
                 onChange={handleChange}
                 InputProps={{ sx: { borderRadius: 0 } }}
@@ -197,7 +235,7 @@ export default function AuthModal({ open, onClose, t }) {
             </Typography>
             <Typography 
               variant="body2" 
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => { setIsLogin(!isLogin); setError(null); }}
               sx={{ 
                 color: 'secondary.main', 
                 fontWeight: 'bold', 
