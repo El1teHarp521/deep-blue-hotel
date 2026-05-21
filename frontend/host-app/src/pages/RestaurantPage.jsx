@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Box, Container, Typography, CardMedia, Paper } from '@mui/material';
+import { Box, Container, Typography, CardMedia, Paper, Button, IconButton } from '@mui/material'; // ДОБАВИЛ ICONBUTTON В ИМПОРТ
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import IconButton from '@mui/material/IconButton';
+import axios from 'axios';
+import { formatPrice } from '../utils/price';
 
-export default function RestaurantPage({ t }) {
+export default function RestaurantPage({ t, currency, lang, user }) {
   const restaurantImages = [
     '/images/service-restaurant-1.jpg',
     '/images/service-restaurant-2.jpg',
@@ -20,6 +21,22 @@ export default function RestaurantPage({ t }) {
   const handlePrev = () => {
     setActiveSlide((prev) => (prev === 0 ? restaurantImages.length - 1 : prev - 1));
   };
+
+  const handlePurchaseService = async (serviceName) => {
+    try {
+      const response = await axios.post('http://localhost:3003/api/auth/services/purchase', {
+        serviceName,
+        quantity: 1
+      });
+      if (response.data.success) {
+        window.alert(lang === 'RU' ? 'Успешно добавлено в проживание!' : 'Successfully added to stay!');
+      }
+    } catch (error) {
+      window.alert(error.response?.data?.error || 'Ошибка при покупке');
+    }
+  };
+
+  const showPurchaseBtn = user && ['Guest', 'Employee', 'Admin'].includes(user.role);
 
   return (
     <Box sx={{ pt: 22, pb: 10 }}>
@@ -102,13 +119,24 @@ export default function RestaurantPage({ t }) {
           gap: 4 
         }}>
           {[
-            { title: t.breakfast, time: '6:30 - 9:00', desc: t.breakfast },
-            { title: t.lunch, time: '13:00 - 15:00', desc: t.lunch },
-            { title: t.dinner, time: '18:30 - 01:00', desc: t.dinner }
+            { key: 'breakfast', title: t.breakfast, time: '6:30 - 9:00', price: 3100 },
+            { key: 'lunch', title: t.lunch, time: '13:00 - 15:00', price: 7200 },
+            { key: 'dinner', title: t.dinner, time: '18:30 - 01:00', price: 5400 }
           ].map((item, idx) => (
-            <Paper key={idx} sx={{ p: 5, borderRadius: 0, bgcolor: 'background.paper', textAlign: 'center' }}>
-              <Typography variant="h6" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{item.title}</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 2, color: 'text.primary' }}>{item.time}</Typography>
+            <Paper key={idx} sx={{ p: 5, borderRadius: 0, bgcolor: 'background.paper', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="h6" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{item.title}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>{item.time}</Typography>
+                <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 3 }}>
+                  {formatPrice(item.price, currency, lang)}
+                </Typography>
+              </Box>
+
+              {showPurchaseBtn && (
+                <Button variant="contained" onClick={() => handlePurchaseService(item.key)} sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0 }}>
+                  {lang === 'RU' ? 'Добавить в проживание' : 'Add to stay'}
+                </Button>
+              )}
             </Paper>
           ))}
         </Box>

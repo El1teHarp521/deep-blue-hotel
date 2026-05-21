@@ -14,17 +14,14 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
 
-  // Стейты пополнения баланса
   const [openRefillModal, setOpenRefillModal] = useState(false);
   const [refillAmount, setRefillAmount] = useState('');
   const [cvc, setCvc] = useState('');
   const [useLinkedCard, setUseLinkedCard] = useState(false);
 
-  // Свойства новой карты при пополнении
   const [newCardNumber, setNewCardNumber] = useState('');
   const [newExpireDate, setNewExpireDate] = useState('');
 
-  // Личные данные и привязанные карты
   const [profileData, setProfileData] = useState({ firstName: '', lastName: '', phone: '', country: '' });
   const [cardNumber, setCardNumber] = useState('');
   const [expireDate, setExpireDate] = useState('');
@@ -32,16 +29,18 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const [transactions, setTransactions] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
 
-  // Стейты задач и уборок
+  const [activeBooking, setActiveBooking] = useState(null);
+  const [myServices, setMyServices] = useState([]); 
+  const [myMassages, setMyMassages] = useState([]);  
+
   const [cleaningStatus, setCleaningStatus] = useState([]); 
   const [employeeTasks, setEmployeeTasks] = useState({ schedules: [], assignedCleanings: [] }); 
   const [adminTasks, setAdminTasks] = useState({ cleaningRequests: [], schedules: [] }); 
 
-  const guestsLog = [
-    { firstName: 'Александр', lastName: 'Солоткин', room: 'Пентхаус №12', dates: '20.05.2026 — 28.05.2026', status: 'Проживает' },
-    { firstName: 'Мария', lastName: 'Смирнова', room: 'Люкс №305', dates: '18.05.2026 — 25.05.2026', status: 'Проживает' },
-    { firstName: 'Дмитрий', lastName: 'Кузнецов', room: 'Бизнес №201', dates: '19.05.2026 — 22.05.2026', status: 'Выселен' }
-  ];
+  const [guestsLog, setGuestsLog] = useState([]);
+
+  const [adminRooms, setAdminRooms] = useState([]);
+  const [adminBookings, setAdminBookings] = useState([]);
 
   const inputStyle = {
     '& .MuiOutlinedInput-root': { borderRadius: 0 }
@@ -74,15 +73,32 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
       const transRes = await axios.get('http://localhost:3003/api/auth/transactions');
       setTransactions(transRes.data);
 
+      const bookingRes = await axios.get('http://localhost:3001/api/bookings/active');
+      if (bookingRes.data.hasBooking) {
+        setActiveBooking(bookingRes.data);
+      }
+
+      const servicesRes = await axios.get('http://localhost:3003/api/auth/services/my');
+      setMyServices(servicesRes.data);
+
+      const massagesRes = await axios.get('http://localhost:3003/api/auth/massage/my');
+      setMyMassages(massagesRes.data);
+
       if (user.role === 'Admin') {
         const usersRes = await axios.get('http://localhost:3003/api/auth/admin/users');
         setAdminUsers(usersRes.data);
         
         const adminTasksRes = await axios.get('http://localhost:3003/api/auth/admin/tasks');
         setAdminTasks(adminTasksRes.data);
+
+        const roomsRes = await axios.get('http://localhost:3001/api/rooms');
+        setAdminRooms(roomsRes.data);
+
+        const bookingsRes = await axios.get('http://localhost:3001/api/admin/bookings');
+        setAdminBookings(bookingsRes.data);
       }
 
-      if (user.role === 'Guest') {
+      if (user.role === 'Guest' || user.role === 'Admin') {
         const cleaningRes = await axios.get('http://localhost:3003/api/auth/cleaning/status');
         setCleaningStatus(cleaningRes.data);
       }
@@ -90,11 +106,15 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
       if (user.role === 'Employee' || user.role === 'Admin') {
         const employeeTasksRes = await axios.get('http://localhost:3003/api/auth/employee/tasks');
         setEmployeeTasks(employeeTasksRes.data);
+
+        const guestsRes = await axios.get('http://localhost:3003/api/auth/employee/guests');
+        setGuestsLog(guestsRes.data);
       }
 
-      setLoading(false);
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,9 +127,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         country: profileData.country
       });
       setUser({ ...user, ...profileData, fullName: `${profileData.firstName} ${profileData.lastName}` });
-      setAlert({ type: 'success', text: 'Профиль успешно сохранен!' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Профиль успешно сохранен!' : 'Profile saved successfully!' });
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка при сохранении' });
+      setAlert({ type: 'error', text: 'Error saving profile' });
     }
   };
 
@@ -118,12 +138,12 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     const parsedAmount = parseFloat(refillAmount);
     
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setAlert({ type: 'error', text: 'Пожалуйста, введите корректное число больше нуля' });
+      setAlert({ type: 'error', text: lang === 'RU' ? 'Введите корректное число' : 'Please enter a valid amount' });
       return;
     }
 
     if (cvc.length !== 3 || isNaN(parseInt(cvc))) {
-      setAlert({ type: 'error', text: 'Неверный формат CVV/CVC кода (3 цифры)' });
+      setAlert({ type: 'error', text: lang === 'RU' ? 'Неверный CVV (3 цифры)' : 'Invalid CVV (3 digits)' });
       return;
     }
 
@@ -142,7 +162,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
       setNewCardNumber('');
       setNewExpireDate('');
       setOpenRefillModal(false);
-      setAlert({ type: 'success', text: 'Баланс успешно пополнен!' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Баланс успешно пополнен!' : 'Balance topped up successfully!' });
       loadUserData();
     } catch (err) {
       setAlert({ type: 'error', text: err.response?.data?.error || 'Ошибка пополнения' });
@@ -152,7 +172,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const handleAddCard = async (e) => {
     e.preventDefault();
     if (cardNumber.length !== 16) {
-      setAlert({ type: 'error', text: 'Номер карты должен состоять из 16 цифр' });
+      setAlert({ type: 'error', text: 'Card number must be 16 digits' });
       return;
     }
 
@@ -160,7 +180,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
       await axios.post('http://localhost:3003/api/auth/cards', { cardNumber, expireDate });
       setCardNumber('');
       setExpireDate('');
-      setAlert({ type: 'success', text: 'Карта успешно привязана!' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Карта привязана!' : 'Card linked successfully!' });
       loadUserData();
     } catch (err) {
       setAlert({ type: 'error', text: err.response?.data?.error || 'Ошибка привязки' });
@@ -170,11 +190,28 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const handleDeleteCard = async (cardId) => {
     try {
       await axios.delete(`http://localhost:3003/api/auth/cards/${cardId}`);
-      setAlert({ type: 'success', text: 'Карта успешно удалена' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Карта удалена' : 'Card unlinked' });
       setUseLinkedCard(false);
       loadUserData();
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка удаления карты' });
+      setAlert({ type: 'error', text: 'Error unlinking card' });
+    }
+  };
+
+  const handlePayDebt = async () => {
+    if (!activeBooking) return;
+    try {
+      const response = await axios.post('http://localhost:3003/api/auth/bookings/pay-debt', {
+        bookingId: activeBooking.bookingId,
+        amount: activeBooking.price
+      });
+      if (response.data.success) {
+        setUser({ ...user, balance: response.data.newBalance });
+        setAlert({ type: 'success', text: lang === 'RU' ? 'Задолженность успешно погашена!' : 'Debt paid successfully!' });
+        loadUserData();
+      }
+    } catch (error) {
+      setAlert({ type: 'error', text: error.response?.data?.error || 'Ошибка списания долга' });
     }
   };
 
@@ -182,9 +219,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     try {
       await axios.put('http://localhost:3003/api/auth/google/link');
       setUser({ ...user, google_linked: true });
-      setAlert({ type: 'success', text: 'Google аккаунт привязан' });
+      setAlert({ type: 'success', text: 'Google Linked!' });
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка привязки' });
+      setAlert({ type: 'error', text: 'Error linking Google' });
     }
   };
 
@@ -193,7 +230,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
       const response = await axios.get('http://localhost:3003/api/auth/google/url');
       window.location.href = response.data.url;
     } catch (err) {
-      setAlert({ type: 'error', text: 'Сервис привязки недоступен' });
+      setAlert({ type: 'error', text: 'Google service unavailable' });
     }
   };
 
@@ -201,29 +238,29 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     try {
       await axios.put('http://localhost:3003/api/auth/google/unlink');
       setUser({ ...user, google_linked: false, google_email: '' });
-      setAlert({ type: 'success', text: 'Google аккаунт успешно отвязан!' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Google аккаунт отвязан!' : 'Google account unlinked!' });
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка отвязки Google аккаунта' });
+      setAlert({ type: 'error', text: 'Error unlinking Google' });
     }
   };
 
   const handleRoleChange = async (targetUserId, newRole) => {
     try {
       await axios.put(`http://localhost:3003/api/auth/admin/users/${targetUserId}/role`, { role: newRole });
-      setAlert({ type: 'success', text: 'Роль успешно изменена!' });
+      setAlert({ type: 'success', text: 'Role updated!' });
       loadUserData();
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка изменения роли' });
+      setAlert({ type: 'error', text: 'Error changing role' });
     }
   };
 
   const handleRequestCleaning = async () => {
     try {
       await axios.post('http://localhost:3003/api/auth/cleaning/request');
-      setAlert({ type: 'success', text: 'Уборка запрошена! Задача отправлена сотрудникам.' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Уборка запрошена!' : 'Cleaning requested! Task assigned to employees.' });
       loadUserData();
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка отправки запроса' });
+      setAlert({ type: 'error', text: 'Error requesting cleaning' });
     }
   };
 
@@ -234,21 +271,96 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         status: nextStatus,
         isCleaningRequest: isCleaning
       });
-      setAlert({ type: 'success', text: 'Статус задачи успешно обновлен!' });
+      setAlert({ type: 'success', text: 'Task status updated!' });
       loadUserData();
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка обновления задачи' });
+      setAlert({ type: 'error', text: 'Error updating task' });
     }
   };
 
   const handleAssignEmployee = async (taskId, employeeId) => {
     try {
       await axios.post('http://localhost:3003/api/auth/admin/tasks/assign', { taskId, employeeId });
-      setAlert({ type: 'success', text: 'Задача назначена сотруднику!' });
+      setAlert({ type: 'success', text: 'Employee assigned!' });
       loadUserData();
     } catch (err) {
-      setAlert({ type: 'error', text: 'Ошибка назначения' });
+      setAlert({ type: 'error', text: 'Error assigning task' });
     }
+  };
+
+  const handleUpdateRoomPrice = async (roomId, currentPrice) => {
+    const newPrice = prompt(lang === 'RU' ? 'Введите новую цену номера (₽):' : 'Enter new price for the room:', currentPrice);
+    if (newPrice === null || isNaN(parseFloat(newPrice))) return;
+    try {
+      await axios.put(`http://localhost:3001/api/admin/rooms/${roomId}`, { price: parseFloat(newPrice) });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Цена номера успешно изменена!' : 'Room price updated successfully!' });
+      loadUserData();
+    } catch (err) {
+      setAlert({ type: 'error', text: 'Error updating room price' });
+    }
+  };
+
+  const handleUpdateRoomStatus = async (roomId, newStatus) => {
+    try {
+      await axios.put(`http://localhost:3001/api/admin/rooms/${roomId}`, { status: newStatus });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Статус номера изменен!' : 'Room status updated!' });
+      loadUserData();
+    } catch (err) {
+      setAlert({ type: 'error', text: 'Error updating room status' });
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    const confirm = window.confirm(lang === 'RU' ? 'Вы уверены, что хотите снять бронь / выселить этого гостя?' : 'Are you sure you want to cancel this booking and checkout the guest?');
+    if (!confirm) return;
+    try {
+      await axios.put(`http://localhost:3001/api/admin/bookings/${bookingId}/status`, { booking_status: 'Cancelled' });
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Бронирование успешно отменено!' : 'Booking successfully cancelled!' });
+      loadUserData();
+    } catch (err) {
+      setAlert({ type: 'error', text: 'Error cancelling booking' });
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId) => {
+    const confirm = window.confirm(lang === 'RU' ? 'ВНИМАНИЕ! Вы действительно хотите ПОЛНОСТЬЮ удалить эту запись бронирования из базы данных?' : 'WARNING! Are you sure you want to COMPLETELY delete this booking record?');
+    if (!confirm) return;
+    try {
+      await axios.delete(`http://localhost:3001/api/admin/bookings/${bookingId}`);
+      setAlert({ type: 'success', text: lang === 'RU' ? 'Запись бронирования удалена из базы данных!' : 'Booking record deleted successfully!' });
+      loadUserData();
+    } catch (err) {
+      setAlert({ type: 'error', text: 'Error deleting booking record' });
+    }
+  };
+
+  const getRoomStatusLabel = (room) => {
+    if (room.status === 'Maintenance') {
+      return lang === 'RU' ? 'Обслуживание' : 'Maintenance';
+    }
+    if (room.isOccupied) {
+      return lang === 'RU' ? 'Занят (Проживают)' : 'Occupied';
+    }
+    return lang === 'RU' ? 'Свободен' : 'Available';
+  };
+
+  const getRoomStatusColor = (room) => {
+    if (room.status === 'Maintenance') return 'warning';
+    if (room.isOccupied) return 'error';
+    return 'success';
+  };
+
+  const getGroupedServices = () => {
+    const grouped = [];
+    myServices.forEach((srv) => {
+      const existing = grouped.find(item => item.name === srv.name);
+      if (existing) {
+        existing.quantity += srv.quantity;
+      } else {
+        grouped.push({ ...srv });
+      }
+    });
+    return grouped;
   };
 
   if (!user || loading) {
@@ -260,30 +372,74 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     );
   }
 
+  const getIncludedPrivileges = (category) => {
+    const privileges = {
+      standard: [
+        lang === 'RU' ? '✔ Бассейн и термальные зоны SPA' : '✔ SPA & thermal pool access',
+        lang === 'RU' ? '✔ 2 часа доступа в игровую Cyberzone' : '✔ 2 hours of Cyberzone gaming'
+      ],
+      business: [
+        lang === 'RU' ? '✔ Бассейн и термальные зоны SPA' : '✔ SPA & thermal pool access',
+        lang === 'RU' ? '✔ Завтрак (шведский стол)' : '✔ Breakfast buffet included',
+        lang === 'RU' ? '✔ 8 часов доступа в игровую Cyberzone' : '✔ 8 hours of Cyberzone gaming'
+      ],
+      lux: [
+        lang === 'RU' ? '✔ Бассейн и бани в SPA-центре' : '✔ SPA Pools & Saunas access',
+        lang === 'RU' ? '✔ Полный рацион питания (завтрак, обед, ужин)' : '✔ Full-board dining (breakfast, lunch, dinner)',
+        lang === 'RU' ? '✔ 12 часов доступа в игровую Cyberzone' : '✔ 12 hours of Cyberzone gaming'
+      ],
+      penthouse: [
+        lang === 'RU' ? '✔ Всё включено (Ultra All Inclusive)' : '✔ Ultra All Inclusive stays',
+        lang === 'RU' ? '✔ 42 часа доступа в игровую Cyberzone' : '✔ 42 hours of Cyberzone gaming',
+        lang === 'RU' ? '✔ Парковочное место Сектор VIP, место №12' : '✔ Private VIP Parking, spot #12'
+      ]
+    };
+    return privileges[category] || privileges.standard;
+  };
+
+  const serviceTranslationMap = {
+    breakfast: lang === 'RU' ? 'Завтрак' : 'Breakfast',
+    lunch: lang === 'RU' ? 'Обед' : 'Lunch',
+    dinner: lang === 'RU' ? 'Ужин' : 'Dinner',
+    saunas: lang === 'RU' ? 'Бани в SPA' : 'SPA Saunas access',
+    massage: lang === 'RU' ? 'Сеанс Массажа' : 'Massage Session',
+    parking: lang === 'RU' ? 'Машинное место' : 'Parking Spot',
+    cyber: lang === 'RU' ? 'Часы в Cyberzone' : 'Cyberzone Gaming Hours'
+  };
+
+  const getSpecialistName = (id) => {
+    const names = {
+      1: lang === 'RU' ? 'Алия Шарапова' : 'Alia Sharapova',
+      2: lang === 'RU' ? 'Карина Воробьева' : 'Karina Vorobieva',
+      3: lang === 'RU' ? 'Даниил Царев' : 'Daniil Tsarev'
+    };
+    return names[id] || 'Unknown';
+  };
+
   return (
     <Box sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
-        <Typography variant="h2" sx={{ fontFamily: 'Playfair Display', mb: 4 }}>Личный кабинет</Typography>
+        <Typography variant="h2" sx={{ fontFamily: 'Playfair Display', mb: 4 }}>{t.cabinetTitle}</Typography>
 
         {alert && <Alert severity={alert.type} sx={{ borderRadius: 0, mb: 4 }} onClose={() => setAlert(null)}>{alert.text}</Alert>}
 
         <Paper sx={{ borderRadius: 0, mb: 6 }}>
           <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} textColor="primary" indicatorColor="primary">
-            <Tab label="Профиль" value="profile" sx={{ fontWeight: 'bold' }} />
-            {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label="Баланс & Карты" value="balance" sx={{ fontWeight: 'bold' }} />}
-            {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label="Активные брони" value="active" sx={{ fontWeight: 'bold' }} />}
-            {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label="История транзакций" value="transactions" sx={{ fontWeight: 'bold' }} />}
-            {(user?.role === 'Employee' || user?.role === 'Admin') && <Tab label="Задачи & Расписание" value="employee_tasks" sx={{ fontWeight: 'bold' }} />}
-            {(user?.role === 'Employee' || user?.role === 'Admin') && <Tab label="Учет постояльцев" value="guests_log" sx={{ fontWeight: 'bold' }} />}
-            {user?.role === 'Admin' && <Tab label="Админ-панель" value="admin" sx={{ fontWeight: 'bold' }} />}
+            <Tab label={t.tabProfile} value="profile" sx={{ fontWeight: 'bold' }} />
+            {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label={t.tabBalance} value="balance" sx={{ fontWeight: 'bold' }} />}
+            {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label={t.tabActive} value="active" sx={{ fontWeight: 'bold' }} />}
+            {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label={t.tabHistory} value="transactions" sx={{ fontWeight: 'bold' }} />}
+            {(user?.role === 'Employee' || user?.role === 'Admin') && <Tab label={t.tabEmployee} value="employee_tasks" sx={{ fontWeight: 'bold' }} />}
+            {(user?.role === 'Employee' || user?.role === 'Admin') && <Tab label={t.tabGuests} value="guests_log" sx={{ fontWeight: 'bold' }} />}
+            {user?.role === 'Admin' && <Tab label={t.tabAdmin} value="admin" sx={{ fontWeight: 'bold' }} />}
           </Tabs>
         </Paper>
 
-        {/* --- ВКЛАДКА 1: ДАННЫЕ ПРОФИЛЯ --- */}
+        {/* --- данные профиля --- */}
         {tabValue === 'profile' && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Box component="form" onSubmit={handleSaveProfile}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>Личные данные</Typography>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.personalData}</Typography>
               
               <Box sx={{ 
                 display: 'grid', 
@@ -291,103 +447,152 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 gap: 4, 
                 mb: 4 
               }}>
-                <TextField fullWidth label="Имя" value={profileData.firstName} onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })} sx={inputStyle} />
-                <TextField fullWidth label="Фамилия" value={profileData.lastName} onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })} sx={inputStyle} />
-                <TextField fullWidth label="Телефон" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} sx={inputStyle} />
-                <TextField fullWidth label="Страна проживания" value={profileData.country} onChange={(e) => setProfileData({ ...profileData, country: e.target.value })} sx={inputStyle} />
+                <TextField fullWidth label={lang === 'RU' ? 'Имя' : 'First Name'} value={profileData.firstName} onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })} sx={inputStyle} />
+                <TextField fullWidth label={lang === 'RU' ? 'Фамилия' : 'Last Name'} value={profileData.lastName} onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })} sx={inputStyle} />
+                <TextField fullWidth label={lang === 'RU' ? 'Телефон' : 'Phone'} value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} sx={inputStyle} />
+                <TextField fullWidth label={lang === 'RU' ? 'Страна проживания' : 'Country'} value={profileData.country} onChange={(e) => setProfileData({ ...profileData, country: e.target.value })} sx={inputStyle} />
               </Box>
 
               <Box sx={{ p: 3, mb: 4, bgcolor: 'background.default', border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2"><b>Роль в системе:</b> {user?.role === 'User' ? 'Пользователь' : user?.role === 'Guest' ? 'Постоялец' : user?.role}</Typography>
+                <Typography variant="body2"><b>{t.roleInSystem}:</b> {user?.role === 'User' ? t.roleUser : user?.role === 'Guest' ? t.roleGuest : user?.role}</Typography>
                 <Box>
                   {user?.google_linked ? (
                     <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: 'green', fontWeight: 'bold' }}>Google Account привязан ({user?.google_email || user?.email})</Typography>
-                      <Button variant="outlined" color="error" size="small" onClick={handleUnlinkGoogle} sx={{ borderRadius: 0 }}>Отвязать Google Account</Button>
+                      <Typography variant="body2" sx={{ color: 'green', fontWeight: 'bold' }}>{t.googleStatusLinked} ({user?.google_email || user?.email})</Typography>
+                      <Button variant="outlined" color="error" size="small" onClick={handleUnlinkGoogle} sx={{ borderRadius: 0 }}>{t.btnGoogleUnlink}</Button>
                     </Box>
                   ) : (
-                    <Button variant="outlined" onClick={handleLinkGoogleAndRedirect} size="small" sx={{ borderRadius: 0 }}>Привязать Google Account</Button>
+                    <Button variant="outlined" onClick={handleLinkGoogleAndRedirect} size="small" sx={{ borderRadius: 0 }}>{t.btnGoogleLink}</Button>
                   )}
                 </Box>
               </Box>
 
-              <Button type="submit" variant="contained" sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0 }}>СОХРАНИТЬ ИЗМЕНЕНИЯ</Button>
+              <Button type="submit" variant="contained" sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0 }}>{t.btnSave}</Button>
             </Box>
           </Paper>
         )}
 
-        {/* --- ВКЛАДКА 2: БАЛАНС И КАРТЫ --- */}
+        {/* --- баланс + карта --- */}
         {tabValue === 'balance' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' }, gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-              <Typography variant="h5" sx={{ mb: 2, fontFamily: 'Playfair Display' }}>Текущий баланс</Typography>
+              <Typography variant="h5" sx={{ mb: 2, fontFamily: 'Playfair Display' }}>{t.currentBalance}</Typography>
               <Typography variant="h2" color="secondary" sx={{ fontWeight: 'bold', mb: 4 }}>{formatPrice(user?.balance, currency, lang)}</Typography>
               
               <Button variant="contained" onClick={() => setOpenRefillModal(true)} sx={{ bgcolor: '#c1a37f', color: 'white', py: 2, px: 6, borderRadius: 0 }}>
-                ПОПОЛНИТЬ БАЛАНС
+                {t.btnTopUp}
               </Button>
             </Paper>
 
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>Привязанная Карта</Typography>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{lang === 'RU' ? 'Карты' : 'Linked Cards'}</Typography>
               {cards.map(c => (
                 <Box key={c.id} sx={{ p: 2, mb: 2, border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography>•••• •••• •••• {c.lastFour} (Карта привязана)</Typography>
-                  <Button size="small" color="error" onClick={() => handleDeleteCard(c.id)}>Удалить</Button>
+                  <Typography>•••• •••• •••• {c.lastFour} ({t.cardLinkedStatus})</Typography>
+                  <Button size="small" color="error" onClick={() => handleDeleteCard(c.id)}>{t.cardDelete}</Button>
                 </Box>
               ))}
 
               {cards.length === 0 && (
                 <Box component="form" onSubmit={handleAddCard} sx={{ mt: 2, display: 'grid', gap: 3 }}>
-                  <TextField fullWidth label="Номер карты (16 цифр)" value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
+                  <TextField fullWidth label={lang === 'RU' ? 'Номер карты (16 цифр)' : 'Card Number (16 digits)'} value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
                   <TextField fullWidth placeholder="MM/YY" value={expireDate} onChange={(e) => setExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
-                  <Button type="submit" variant="outlined" sx={{ width: '100%', borderRadius: 0 }}>Привязать карту</Button>
+                  <Button type="submit" variant="outlined" sx={{ width: '100%', borderRadius: 0 }}>{t.cardAddBtn}</Button>
                 </Box>
               )}
             </Paper>
           </Box>
         )}
 
-        {/* --- ВКЛАДКА 3: АКТИВНЫЕ УСЛУГИ --- */}
+        {/* --- активные услуги --- */}
         {tabValue === 'active' && (user?.role === 'Guest' || user?.role === 'Admin') && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.5fr 1fr' }, gap: 6 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>Активные услуги</Typography>
-              <Box sx={{ p: 4, border: '1px solid rgba(128,128,128,0.2)', mb: 4 }}>
-                <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>Номер: ПЕНТХАУС SIGNATURE</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Класс: Пентхаус | Даты: 20.05.2026 — 28.05.2026</Typography>
-                <Chip label="Активен" color="success" sx={{ borderRadius: 0, mt: 2 }} />
-              </Box>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.activeServicesTitle}</Typography>
+              
+              {activeBooking ? (
+                <Box sx={{ p: 4, border: '1px solid rgba(128,128,128,0.2)', mb: 4 }}>
+                  <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
+                    {lang === 'RU' ? `Номер: ${activeBooking.roomNumber} (${activeBooking.category.toUpperCase()})` : `Room: ${activeBooking.roomNumber} (${activeBooking.category.toUpperCase()})`}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {lang === 'RU' ? `Даты: ${new Date(activeBooking.checkIn).toLocaleDateString()} — ${new Date(activeBooking.checkOut).toLocaleDateString()}` : `Dates: ${new Date(activeBooking.checkIn).toLocaleDateString()} — ${new Date(activeBooking.checkOut).toLocaleDateString()}`}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, mt: 2, alignItems: 'center' }}>
+                    <Chip 
+                      label={activeBooking.paymentStatus === 'Paid' ? (lang === 'RU' ? 'Оплачен' : 'Paid') : (lang === 'RU' ? 'Задолженность' : 'Debt')} 
+                      color={activeBooking.paymentStatus === 'Paid' ? 'success' : 'error'} 
+                      sx={{ borderRadius: 0 }} 
+                    />
+                    
+                    {activeBooking.paymentStatus !== 'Paid' && (
+                      <Button variant="contained" size="small" onClick={handlePayDebt} sx={{ bgcolor: '#002F6C', borderRadius: 0, color: 'white' }}>
+                        {lang === 'RU' ? 'Погасить задолженность' : 'Pay Debt'}
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              ) : (
+                <Typography sx={{ py: 4, color: 'text.secondary' }}>
+                  {lang === 'RU' ? 'У вас нет активных бронирований.' : 'You have no active bookings.'}
+                </Typography>
+              )}
+              
               <Divider sx={{ my: 4 }} />
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>Включено в проживание:</Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 4 }}>
-                <Typography variant="body2">✔ Бассейн и термальные зоны SPA</Typography>
-                <Typography variant="body2">✔ Всё включено (завтрак, обед, ужин)</Typography>
-                <Typography variant="body2">✔ 42 часа доступа в игровую Cyberzone</Typography>
-                <Typography variant="body2">✔ Парковочное место Сектор VIP, место №12</Typography>
-              </Box>
+              
+              {activeBooking && (
+                <Box>
+                  <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>{t.includedTitle}:</Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 1.5, mb: 4 }}>
+                    {getIncludedPrivileges(activeBooking.category).map((priv, idx) => (
+                      <Typography key={idx} variant="body2">{priv}</Typography>
+                    ))}
+                  </Box>
 
-              <Divider sx={{ my: 4 }} />
+                  {myServices.length > 0 && (
+                    <Box sx={{ mt: 4 }}>
+                      <Divider sx={{ mb: 4 }} />
+                      <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold', color: 'secondary.main' }}>
+                        {lang === 'RU' ? 'Дополнительно приобретено:' : 'Additionally Purchased:'}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {getGroupedServices().map(srv => (
+                          <Typography key={srv.id} variant="body2">
+                            ✔ {serviceTranslationMap[srv.name] || srv.name} (x{srv.quantity}) — <span style={{ fontWeight: 'bold' }}>{formatPrice(srv.price * srv.quantity, currency, lang)}</span>
+                          </Typography>
+                        ))}
+                        {myMassages.map(msg => (
+                          <Typography key={msg.id} variant="body2">
+                            ✔ {lang === 'RU' ? `Запись на Массаж (Мастер: ${getSpecialistName(msg.specialist_id)})` : `Massage Session (Master: ${getSpecialistName(msg.specialist_id)})`} — {msg.date} в {msg.time}
+                          </Typography>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
 
-              <Button variant="contained" onClick={handleRequestCleaning} sx={{ bgcolor: '#002F6C', color: 'white', py: 2, borderRadius: 0 }}>
-                Запросить уборку в номере
-              </Button>
+                  <Divider sx={{ my: 4 }} />
+                  <Button variant="contained" onClick={handleRequestCleaning} sx={{ bgcolor: '#002F6C', color: 'white', py: 2, borderRadius: 0 }}>
+                    {t.cleaningRequestBtn}
+                  </Button>
+                </Box>
+              )}
             </Paper>
 
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>Запросы на уборку</Typography>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{lang === 'RU' ? 'Запросы на уборку' : 'Cleaning Requests'}</Typography>
               {cleaningStatus.map(req => (
                 <Box key={req.id} sx={{ p: 2, mb: 2, border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography variant="body2">Запрос от {new Date(req.created_at).toLocaleDateString()}</Typography>
+                    <Typography variant="body2">{lang === 'RU' ? `Запрос от ${new Date(req.created_at).toLocaleDateString()}` : `Request from ${new Date(req.created_at).toLocaleDateString()}`}</Typography>
                     {req.status === 'Completed' && (
                       <Typography variant="caption" sx={{ color: 'green', display: 'block', mt: 0.5, fontWeight: 'bold' }}>
-                        Выполнено в: {new Date(req.updated_at || req.created_at).toLocaleTimeString()} ({new Date(req.updated_at || req.created_at).toLocaleDateString()})
+                        {lang === 'RU' ? 'Выполнено в' : 'Completed at'}: {new Date(req.updated_at || req.created_at).toLocaleTimeString()} ({new Date(req.updated_at || req.created_at).toLocaleDateString()})
                       </Typography>
                     )}
                   </Box>
                   <Chip 
-                    label={req.status === 'Pending' ? 'Ожидает' : req.status === 'Assigned' ? 'Назначено' : req.status === 'InProgress' ? 'В процессе' : 'Выполнено'} 
+                    label={req.status === 'Pending' ? t.cleaningStatusPending : req.status === 'Assigned' ? t.cleaningStatusAssigned : req.status === 'InProgress' ? t.cleaningStatusProgress : t.cleaningStatusCompleted} 
                     color={req.status === 'Pending' ? 'warning' : req.status === 'Assigned' ? 'primary' : req.status === 'InProgress' ? 'secondary' : 'success'}
                     sx={{ borderRadius: 0 }}
                   />
@@ -397,22 +602,22 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- ВКЛАДКА 4: ИСТОРИЯ ТРАНЗАКЦИЙ --- */}
+        {/* --- история транзакций--- */}
         {tabValue === 'transactions' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
             <Table>
               <TableHead sx={{ bgcolor: 'primary.main' }}>
                 <TableRow>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Тип</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Сумма</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Дата</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Описание</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transType}</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transAmount}</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transDate}</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t.transDesc}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {transactions.map((tRow) => (
                   <TableRow key={tRow.id} hover>
-                    <TableCell><Chip label={tRow.type === 'REFILL' ? 'Пополнение' : 'Списание'} color={tRow.type === 'REFILL' ? 'success' : 'error'} sx={{ borderRadius: 0 }} /></TableCell>
+                    <TableCell><Chip label={tRow.type === 'REFILL' ? t.transRefill : tRow.type === 'DEBT_PAY' ? (lang === 'RU' ? 'Оплата долга' : 'Pay Debt') : t.transWithdraw} color={tRow.type === 'REFILL' ? 'success' : 'error'} sx={{ borderRadius: 0 }} /></TableCell>
                     <TableCell sx={{ fontWeight: 'bold' }}>{tRow.type === 'REFILL' ? '+' : '-'} {formatPrice(parseFloat(tRow.amount), currency, lang)}</TableCell>
                     <TableCell>{new Date(tRow.created_at).toLocaleString()}</TableCell>
                     <TableCell>{tRow.description}</TableCell>
@@ -423,20 +628,20 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/* --- ВКЛАДКА 5: ЗАДАЧИ СОТРУДНИКА --- */}
+        {/* --- задачи сотрудников --- */}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>Мои Задачи на сегодня</Typography>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{t.assignedTasksTitle}</Typography>
               {employeeTasks.assignedCleanings.length > 0 ? employeeTasks.assignedCleanings.map(task => {
                 const isFreeTask = task.status === 'Pending' && !task.assigned_employee_id;
                 return (
                   <Box key={task.id} sx={{ p: 3, mb: 2, border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="h6">
-                        {isFreeTask ? `Свободная задача на уборку` : `Уборка: Номер ${task.roomNumber} (${task.roomType})`}
+                        {isFreeTask ? (lang === 'RU' ? `Свободный запрос: Уборка №${task.roomNumber} (${task.roomType})` : `Free Task: Cleaning Spot #${task.roomNumber} (${task.roomType})`) : (lang === 'RU' ? `Уборка: Номер ${task.roomNumber} (${task.roomType})` : `Cleaning: Room #${task.roomNumber} (${task.roomType})`)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">Сектор: VIP | Статус: {task.status}</Typography>
+                      <Typography variant="body2" color="text.secondary">Sector: VIP | Status: {task.status}</Typography>
                     </Box>
                     <Button 
                       variant="contained" 
@@ -445,41 +650,51 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                       disabled={task.status === 'Completed'}
                       sx={{ bgcolor: isFreeTask ? '#002F6C' : '#c1a37f', borderRadius: 0 }}
                     >
-                      {isFreeTask ? 'Взять себе' : task.status === 'InProgress' ? 'Выполнено' : 'Завершено'}
+                      {isFreeTask ? (lang === 'RU' ? 'Взять себе' : 'Claim Task') : task.status === 'InProgress' ? (lang === 'RU' ? 'Выполнено' : 'Complete') : (lang === 'RU' ? 'Завершено' : 'Finished')}
                     </Button>
                   </Box>
                 );
               }) : (
-                <Typography color="text.secondary">На сегодня задач на уборку не назначено.</Typography>
+                <Typography color="text.secondary">No tasks assigned for today.</Typography>
               )}
             </Paper>
           </Box>
         )}
 
-        {/* --- ВКЛАДКА 6: УЧЕТ ПОСТОЯЛЬЦЕВ --- */}
+        {/* --- учет постояльцев --- */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
-            <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>Учет постояльцев</Typography>
+            <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.guestLoggingTitle}</Typography>
             <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
               <Table>
                 <TableHead sx={{ bgcolor: 'primary.main' }}>
                   <TableRow>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Имя</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Фамилия</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Номер комнаты</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Даты проживания</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Статус</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Имя' : 'First Name'}</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Фамилия' : 'Last Name'}</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Номер комнаты' : 'Room Number'}</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{lang === 'RU' ? 'Даты проживания' : 'Stay Dates'}</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {guestsLog.map((guest, idx) => (
-                    <TableRow key={idx}>
+                    <TableRow key={guest.id || idx}>
                       <TableCell>{guest.firstName}</TableCell>
                       <TableCell>{guest.lastName}</TableCell>
                       <TableCell>{guest.room}</TableCell>
                       <TableCell>{guest.dates}</TableCell>
                       <TableCell>
-                        <Chip label={guest.status} color={guest.status === 'Проживает' ? 'success' : 'default'} sx={{ borderRadius: 0 }} />
+                        <Chip 
+                          label={lang === 'RU' ? guest.statusRU : guest.statusEN} 
+                          color={
+                            guest.statusRU === 'Проживает' 
+                              ? 'success' 
+                              : guest.statusRU === 'Выселен' 
+                              ? 'default' 
+                              : 'primary'
+                          } 
+                          sx={{ borderRadius: 0 }} 
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -489,35 +704,36 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* --- ВКЛАДКА 7: АДМИН-ПАНЕЛЬ --- */}
+        {/* --- панель админа --- */}
         {tabValue === 'admin' && user?.role === 'Admin' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
+            {/* Карточка 1: Управление пользователями */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>Управление пользователями</Typography>
-              <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
-                <Table>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.userManagementTitle}</Typography>
+              <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 300 }}>
+                <Table stickyHeader>
                   <TableHead sx={{ bgcolor: 'primary.main' }}>
                     <TableRow>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Пользователь</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Email</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Баланс</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Текущая роль</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Действие</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>User</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Balance</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Current Role</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {adminUsers.map(u => (
-                      <TableRow key={u.id}>
+                      <TableRow key={u.id} hover>
                         <TableCell>{u.first_name} {u.last_name}</TableCell>
                         <TableCell>{u.email}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>{formatPrice(u.balance, currency, lang)}</TableCell>
                         <TableCell><Chip label={u.role} color="primary" sx={{ borderRadius: 0 }} /></TableCell>
                         <TableCell>
                           <Select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)} size="small" sx={{ borderRadius: 0, minWidth: 150 }}>
-                            <MenuItem value="User">Пользователь (User)</MenuItem>
-                            <MenuItem value="Guest">Постоялец (Guest)</MenuItem>
-                            <MenuItem value="Employee">Сотрудник (Employee)</MenuItem>
-                            <MenuItem value="Admin">Администратор (Admin)</MenuItem>
+                            <MenuItem value="User">User</MenuItem>
+                            <MenuItem value="Guest">Guest</MenuItem>
+                            <MenuItem value="Employee">Employee</MenuItem>
+                            <MenuItem value="Admin">Admin</MenuItem>
                           </Select>
                         </TableCell>
                       </TableRow>
@@ -527,30 +743,146 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               </TableContainer>
             </Paper>
 
+            {/* Карточка 2: Управление номерным фондом */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>Распределение задач</Typography>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {lang === 'RU' ? 'Управление отелем (Цены и статусы номеров)' : 'Hotel Rooms Management (Prices & Statuses)'}
+              </Typography>
+              <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 350 }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Номер' : 'Room Number'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Категория' : 'Category'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Текущая цена за ночь' : 'Price per Night'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Статус' : 'Status'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Действия' : 'Actions'}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {adminRooms.map(room => (
+                      <TableRow key={room.id} hover>
+                        <TableCell sx={{ fontWeight: 'bold' }}>{room.room_number}</TableCell>
+                        <TableCell>{room.category.toUpperCase()}</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                          {formatPrice(parseFloat(room.price), currency, lang)}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={getRoomStatusLabel(room)} 
+                            color={getRoomStatusColor(room)} 
+                            sx={{ borderRadius: 0 }} 
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                            <Button variant="outlined" size="small" onClick={() => handleUpdateRoomPrice(room.id, room.price)} sx={{ borderRadius: 0 }}>
+                              {lang === 'RU' ? 'Изменить цену' : 'Edit Price'}
+                            </Button>
+                            <Select 
+                              value={room.status} 
+                              onChange={(e) => handleUpdateRoomStatus(room.id, e.target.value)} 
+                              size="small" 
+                              sx={{ borderRadius: 0, minWidth: 120 }}
+                            >
+                              <MenuItem value="Available">{lang === 'RU' ? 'Свободен' : 'Available'}</MenuItem>
+                              <MenuItem value="Maintenance">{lang === 'RU' ? 'Обслуживание' : 'Maintenance'}</MenuItem>
+                            </Select>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+
+            {/* Карточка 3: Управление бронированиями и постояльцами */}
+            <Paper sx={{ p: 5, borderRadius: 0 }}>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {lang === 'RU' ? 'Управление бронированиями и постояльцами' : 'Stay & Bookings Management'}
+              </Typography>
+              <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 350 }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Постоялец / Гость' : 'Guest'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Номер' : 'Room'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Даты заселения' : 'Stay Dates'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Оплата' : 'Payment'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Статус брони' : 'Status'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{lang === 'RU' ? 'Действия' : 'Actions'}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {adminBookings.map(b => (
+                      <TableRow key={b.id} hover>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{b.guestName}</Typography>
+                          <Typography variant="caption" color="text.secondary">{b.guestEmail}</Typography>
+                        </TableCell>
+                        <TableCell>{b.roomCategory.toUpperCase()} №{b.roomNumber}</TableCell>
+                        <TableCell>
+                          {new Date(b.check_in).toLocaleDateString()} — {new Date(b.check_out).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={b.payment_status === 'Paid' ? (lang === 'RU' ? 'Оплачено' : 'Paid') : (lang === 'RU' ? 'Долг' : 'Unpaid')} 
+                            color={b.payment_status === 'Paid' ? 'success' : 'error'} 
+                            sx={{ borderRadius: 0 }} 
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={b.booking_status === 'Confirmed' ? (lang === 'RU' ? 'Активно' : 'Active') : (lang === 'RU' ? 'Отменено/Выселен' : 'Cancelled')} 
+                            color={b.booking_status === 'Confirmed' ? 'success' : 'default'} 
+                            sx={{ borderRadius: 0 }} 
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            {b.booking_status === 'Confirmed' && (
+                              <Button variant="contained" size="small" color="error" onClick={() => handleCancelBooking(b.id)} sx={{ borderRadius: 0 }}>
+                                {lang === 'RU' ? 'Выселить' : 'Checkout'}
+                              </Button>
+                            )}
+                            <Button variant="outlined" size="small" color="error" onClick={() => handleDeleteBooking(b.id)} sx={{ borderRadius: 0 }}>
+                              {lang === 'RU' ? 'Удалить запись' : 'Delete Record'}
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+
+            {/* Карточка 4: Распределение задач на уборку */}
+            <Paper sx={{ p: 5, borderRadius: 0 }}>
+              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.taskAssignTitle}</Typography>
               {adminTasks.cleaningRequests.filter(req => req.status === 'Pending').length > 0 ? (
                 adminTasks.cleaningRequests.filter(req => req.status === 'Pending').map(req => (
                   <Box key={req.id} sx={{ p: 3, mb: 2, border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body1">Запрос убоки комнаты №{req.roomNumber} ({req.roomType})</Typography>
+                    <Typography variant="body1">{lang === 'RU' ? `Запрос уборки комнаты №${req.roomNumber} (${req.roomType})` : `Cleaning Request Room #${req.roomNumber} (${req.roomType})`}</Typography>
                     <Button 
                       variant="contained" 
                       onClick={() => handleAssignEmployee(req.id, user.id)}
                       sx={{ bgcolor: '#c1a37f', borderRadius: 0 }}
                     >
-                      Назначить на меня
+                      {t.assignToMe}
                     </Button>
                   </Box>
                 ))
               ) : (
-                <Typography color="text.secondary">Нет нераспределенных запросов на уборку.</Typography>
+                <Typography color="text.secondary">No pending cleaning tasks available.</Typography>
               )}
             </Paper>
           </Box>
         )}
       </Container>
 
-      {/* --- МОДАЛЬНОЕ ОКНО ПОПОЛНЕНИЯ БАЛАНСА --- */}
+      {/* --- модальное окно баланса --- */}
       <Dialog 
         open={openRefillModal} 
         onClose={() => setOpenRefillModal(false)}
@@ -561,14 +893,14 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
-          Пополнение баланса
+          {lang === 'RU' ? 'Пополнение баланса' : 'Top Up Balance'}
         </DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleRefill}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                  СУММА ПОПОЛНЕНИЯ (₽)
+                  {lang === 'RU' ? 'СУММА ПОПОЛНЕНИЯ (₽)' : 'TOP UP AMOUNT'}
                 </Typography>
                 <TextField required fullWidth type="number" placeholder="e.g. 5000" value={refillAmount} onChange={(e) => setRefillAmount(e.target.value)} sx={inputStyle} />
               </Box>
@@ -576,11 +908,11 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               {cards.length > 0 ? (
                 <Box>
                   <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                    СПОСОБ ОПЛАТЫ
+                    {lang === 'RU' ? 'СПОСОБ ОПЛАТЫ' : 'PAYMENT METHOD'}
                   </Typography>
                   <Select fullWidth value={useLinkedCard} onChange={(e) => setUseLinkedCard(e.target.value)} sx={{ borderRadius: 0 }}>
-                    <MenuItem value={true}>Привязанная карта (•••• {cards[0].lastFour})</MenuItem>
-                    <MenuItem value={false}>Использовать другую карту</MenuItem>
+                    <MenuItem value={true}>{lang === 'RU' ? `Привязанная карта (•••• ${cards[0].lastFour})` : `Linked Card (•••• ${cards[0].lastFour})`}</MenuItem>
+                    <MenuItem value={false}>{lang === 'RU' ? 'Использовать другую карту' : 'Use another card'}</MenuItem>
                   </Select>
                 </Box>
               ) : null}
@@ -589,13 +921,13 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                   <Box>
                     <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                      НОМЕР КАРТЫ
+                      {lang === 'RU' ? 'НОМЕР КАРТЫ' : 'CARD NUMBER'}
                     </Typography>
-                    <TextField required fullWidth placeholder="16 цифр без пробелов" value={newCardNumber} onChange={(e) => setNewCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
+                    <TextField required fullWidth placeholder="16 digits" value={newCardNumber} onChange={(e) => setNewCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
                   </Box>
                   <Box>
                     <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                      СРОК ДЕЙСТВИЯ
+                      {lang === 'RU' ? 'СРОК ДЕЙСТВИЯ' : 'EXPIRATION DATE'}
                     </Typography>
                     <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={(e) => setNewExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
                   </Box>
@@ -604,13 +936,13 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
 
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                  КОД CVC/CVV
+                  CVC/CVV
                 </Typography>
                 <TextField required fullWidth type="password" placeholder="***" value={cvc} onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))} sx={inputStyle} />
               </Box>
 
               <Button type="submit" variant="contained" fullWidth sx={{ bgcolor: '#c1a37f', color: 'white', py: 1.8, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: '#a68a64' } }}>
-                ОПЛАТИТЬ {refillAmount ? `${refillAmount} ₽` : ''}
+                {lang === 'RU' ? `ОПЛАТИТЬ ${refillAmount ? `${refillAmount} ₽` : ''}` : `PAY ${refillAmount ? `${refillAmount} ₽` : ''}`}
               </Button>
             </Box>
           </Box>

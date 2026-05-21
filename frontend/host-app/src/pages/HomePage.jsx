@@ -30,7 +30,7 @@ export default function HomePage({ t }) {
         backgroundPosition: 'center'
       }} />
 
-      {/* ИНФОРМАЦИОННЫЙ БЛОК */}
+      {/* инф-блок */}
       <Container maxWidth="xl" sx={{ mt: 20, mb: 20, textAlign: 'center' }}>
         <Typography variant="h2" color="primary" sx={{ mb: 4, fontSize: '3.5rem' }}>{t.offerTitle}</Typography>
         <Typography variant="body1" sx={{ maxWidth: '900px', mx: 'auto', mb: 12, color: 'text.primary', opacity: 0.8, lineHeight: 2.2, fontSize: '1.1rem' }}>

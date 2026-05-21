@@ -74,14 +74,9 @@ const Header = ({ mode, toggleTheme, lang, setLang, currency, setCurrency, t, se
 
   const getUserDisplayName = () => {
     if (!user) return '';
-    
     const cleanedName = user.fullName ? user.fullName.replace(/null/gi, '').trim() : '';
-    
-    if (cleanedName && cleanedName.length > 0) {
-      return user.fullName;
-    }
-    
-    return user.email || 'Профиль';
+    if (cleanedName && cleanedName.length > 0) return user.fullName;
+    return user.email || 'Profile';
   };
 
   return (
@@ -116,13 +111,7 @@ const Header = ({ mode, toggleTheme, lang, setLang, currency, setCurrency, t, se
                 <Typography 
                   onClick={() => navigate('/profile')}
                   variant="body2" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    color: '#c1a37f', 
-                    cursor: 'pointer', 
-                    borderBottom: '1px solid transparent', 
-                    '&:hover': { borderBottom: '1px solid' } 
-                  }}
+                  sx={{ fontWeight: 'bold', color: '#c1a37f', cursor: 'pointer', borderBottom: '1px solid transparent', '&:hover': { borderBottom: '1px solid' } }}
                 >
                   {getUserDisplayName()}
                 </Typography>
@@ -150,14 +139,26 @@ const Header = ({ mode, toggleTheme, lang, setLang, currency, setCurrency, t, se
 };
 
 function App() {
-  const [mode, setMode] = useState('dark');
-  const [lang, setLang] = useState('RU');
-  const [currency, setCurrency] = useState('RUB');
+  const [mode, setMode] = useState(localStorage.getItem('deepblue_theme') || 'dark');
+  const [lang, setLang] = useState(localStorage.getItem('deepblue_lang') || 'RU');
+  const [currency, setCurrency] = useState(localStorage.getItem('deepblue_currency') || 'RUB');
   const [openAuth, setOpenAuth] = useState(false);
   const [user, setUser] = useState(null);
 
   const theme = getCustomTheme(mode);
   const t = translations[lang];
+
+  useEffect(() => {
+    localStorage.setItem('deepblue_theme', mode);
+  }, [mode]);
+
+  useEffect(() => {
+    localStorage.setItem('deepblue_lang', lang);
+  }, [lang]);
+
+  useEffect(() => {
+    localStorage.setItem('deepblue_currency', currency);
+  }, [currency]);
 
   useEffect(() => {
     axios.get('http://localhost:3003/api/auth/me')
@@ -201,10 +202,10 @@ function App() {
           <Route path="/" element={<HomePage t={t} />} />
           <Route path="/rooms" element={<RoomsPage t={t} currency={currency} lang={lang} />} />
           <Route path="/rooms/:roomType" element={<RoomDetailPage t={t} currency={currency} lang={lang} />} />
-          <Route path="/restaurants" element={<RestaurantPage t={t} />} />
-          <Route path="/entertainment" element={<EntertainmentPage t={t} />} />
-          <Route path="/spa" element={<SpaPage t={t} />} />
-          <Route path="/parking" element={<ParkingPage t={t} />} />
+          <Route path="/restaurants" element={<RestaurantPage t={t} currency={currency} lang={lang} user={user} />} />
+          <Route path="/entertainment" element={<EntertainmentPage t={t} currency={currency} lang={lang} user={user} />} />
+          <Route path="/spa" element={<SpaPage t={t} currency={currency} lang={lang} user={user} />} />
+          <Route path="/parking" element={<ParkingPage t={t} currency={currency} lang={lang} user={user} />} />
           <Route path="/profile" element={<ProfilePage t={t} currency={currency} lang={lang} user={user} setUser={setUser} />} />
         </Routes>
       </Box>

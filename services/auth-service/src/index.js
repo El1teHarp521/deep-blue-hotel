@@ -1,5 +1,3 @@
-// services/auth-service/src/index.js
-
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -10,6 +8,7 @@ const axios = require('axios');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
+const crypto = require('crypto'); 
 require('dotenv').config();
 
 const app = express();
@@ -22,7 +21,6 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// --- МИДЛВАРЫ БЕЗОПАСНОСТИ ---
 const authenticateToken = (req, res, next) => {
   const token = req.cookies.deepblue_session || req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Неавторизован' });
@@ -67,7 +65,6 @@ const swaggerOptions = {
       }
     }
   },
-  // Абсолютный путь для стабильности парсинга на Windows/Linux
   apis: [path.join(__dirname, 'index.js')] 
 };
 
@@ -75,11 +72,9 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// --- ВАЛИДАТОРЫ ---
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone) => /^\+?[1-9]\d{1,14}$/.test(phone) && phone.length >= 10;
 
-// --- ИНТЕЛЛЕКТУАЛЬНЫЙ МАППИНГ НОМЕРОВ И КЛАССОВ (ТЗ) ---
 const mapCleaningRequest = (req) => {
   const roomMap = {
     '00000000-0000-0000-0000-000000000101': { number: '101', type: 'Стандарт' },
@@ -95,10 +90,30 @@ const mapCleaningRequest = (req) => {
   };
 };
 
+async function seedAdditionalServices() {
+  try {
+    const count = await prisma.additionalServices.count();
+    if (count === 0) {
+      await prisma.additionalServices.createMany({
+        data: [
+          { name: 'breakfast', price: 3100 },
+          { name: 'lunch', price: 7200 },
+          { name: 'dinner', price: 5400 },
+          { name: 'saunas', price: 7800 },
+          { name: 'massage', price: 1200 },
+          { name: 'parking', price: 3700 },
+          { name: 'cyber', price: 210 }
+        ]
+      });
+      console.log('🌱 Дополнительные услуги успешно загружены в базу данных!');
+    }
+  } catch (error) {
+    console.error('Ошибка сиддинга услуг:', error);
+  }
+}
 
-// ==========================================
-// РАЗДЕЛ 1: АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ (AUTH)
-// ==========================================
+
+// РАЗДЕЛ 1: авторизация + регистрация
 
 /**
  * @openapi
@@ -279,7 +294,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
  * /api/auth/logout:
  *   post:
  *     tags: [Auth]
- *     summary: Выход из аккаунта (Очистка кук)
+ *     summary: Выход из аккаунта (Очистка куки сессии)
  */
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('deepblue_session');
@@ -287,9 +302,7 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 
-// ========================================================
-// РАЗДЕЛ 2: СВЯЗКА И ОТВЯЗКА GOOGLE OAUTH
-// ========================================================
+// РАЗДЕЛ 2:  GOOGLE OAUTH
 
 /**
  * @openapi
@@ -416,10 +429,7 @@ app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
   }
 });
 
-
-// ========================================================
-// РАЗДЕЛ 3: КАРТЫ И ПЛАТЕЖИ (PAYMENTS)
-// ========================================================
+// РАЗДЕЛ 3: платежи
 
 /**
  * @openapi
@@ -536,7 +546,7 @@ app.post('/api/auth/refill', authenticateToken, async (req, res) => {
 
     const result = await prisma.$transaction([
       prisma.users.update({ where: { id: req.user.userId }, data: { balance: { increment: parsedAmount } } }),
-      prisma.transactions.create({ data: { user_id: req.user.userId, type: 'REFILL', amount: parsedAmount, description: useLinkedCard ? 'Пополнение баланса (привязанная карта)' : 'Пополнение баланса (новая карта)' } })
+      prisma.transactions.create({ data: { id: crypto.randomUUID(), user_id: req.user.userId, type: 'REFILL', amount: parsedAmount, description: useLinkedCard ? 'Пополнение баланса (привязанная карта)' : 'Пополнение баланса (новая карта)' } })
     ]);
     res.json({ success: true, newBalance: parseFloat(result[0].balance) });
   } catch (error) {
@@ -562,10 +572,49 @@ app.get('/api/auth/transactions', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/bookings/pay-debt:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Погасить задолженность по бронированию
+ *     security:
+ *       - bearerAuth: []
+ */
+app.post('/api/auth/bookings/pay-debt', authenticateToken, async (req, res) => {
+  const { bookingId, amount } = req.body;
+  const price = parseFloat(amount);
 
-// ========================================================
-// РАЗДЕЛ 4: АКТИВНЫЕ УСЛУГИ И УБОРКИ (GUEST & EMPLOYEE)
-// ========================================================
+  try {
+    const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
+    if (parseFloat(user.balance) < price) {
+      return res.status(400).json({ error: 'Недостаточно средств на балансе. Пожалуйста, пополните счет.' });
+    }
+
+    const newBalance = parseFloat(user.balance) - price;
+
+    await prisma.$transaction([
+      prisma.users.update({ where: { id: req.user.userId }, data: { balance: newBalance } }),
+      prisma.bookings.update({ where: { id: bookingId }, data: { payment_status: 'Paid' } }),
+      prisma.transactions.create({
+        data: {
+          id: crypto.randomUUID(),
+          user_id: req.user.userId,
+          type: 'DEBT_PAY',
+          amount: price,
+          description: 'Погашение задолженности за проживание'
+        }
+      })
+    ]);
+
+    res.json({ success: true, message: 'Задолженность успешно погашена!', newBalance });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// РАЗДЕЛ 4: активные услуги
 
 /**
  * @openapi
@@ -578,10 +627,22 @@ app.get('/api/auth/transactions', authenticateToken, async (req, res) => {
  */
 app.post('/api/auth/cleaning/request', authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
   try {
-    const activeBooking = await prisma.bookings.findFirst({ where: { user_id: req.user.userId, status: 'Confirmed' } });
+    const activeBooking = await prisma.bookings.findFirst({
+      where: { user_id: req.user.userId, booking_status: 'Confirmed' }
+    });
+
     const roomId = activeBooking ? activeBooking.room_id : '00000000-0000-0000-0000-000000000101';
-    const request = await prisma.cleaningRequests.create({ data: { user_id: req.user.userId, room_id: roomId, status: 'Pending' } });
-    res.status(201).json({ success: true, request });
+
+    const request = await prisma.cleaningRequests.create({
+      data: {
+        id: crypto.randomUUID(),
+        user_id: req.user.userId,
+        room_id: roomId,
+        status: 'Pending'
+      }
+    });
+
+    res.status(201).json({ success: true, message: 'Уборка успешно запрошена!', request });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -692,11 +753,177 @@ app.put('/api/auth/employee/tasks/:id/status', authenticateToken, requireRole(['
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/massage/book:
+ *   post:
+ *     tags: [Guest Services]
+ *     summary: Запись на сеанс массажа с проверкой доступности мастера (ТЗ)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [specialistId, date, time]
+ *             properties:
+ *               specialistId: { type: number, example: 1 }
+ *               date: { type: string, example: "2026-05-20" }
+ *               time: { type: string, example: "14:00" }
+ */
+app.post('/api/auth/massage/book', authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
+  const { specialistId, date, time } = req.body;
 
-// ========================================================
-// РАЗДЕЛ 5: АДМИНИСТРИРОВАНИЕ (ADMIN & CRUD)
-// ========================================================
+  try {
+    const existingBooking = await prisma.massageBookings.findFirst({
+      where: {
+        specialist_id: parseInt(specialistId),
+        date: date,
+        time: time,
+        status: 'Confirmed'
+      }
+    });
 
+    if (existingBooking) {
+      return res.status(400).json({ error: 'Выбранный специалист уже занят на это время.' });
+    }
+
+    const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
+    const cost = 1200;
+
+    if (parseFloat(user.balance) < cost) {
+      return res.status(400).json({ error: 'Недостаточно средств для записи на массаж.' });
+    }
+
+    const newBalance = parseFloat(user.balance) - cost;
+
+    const result = await prisma.$transaction([
+      prisma.users.update({ where: { id: req.user.userId }, data: { balance: newBalance } }),
+      prisma.massageBookings.create({
+        data: {
+          id: crypto.randomUUID(),
+          user_id: req.user.userId,
+          specialist_id: parseInt(specialistId),
+          date,
+          time
+        }
+      }),
+      prisma.transactions.create({
+        data: {
+          id: crypto.randomUUID(),
+          user_id: req.user.userId,
+          type: 'SERVICE',
+          amount: cost,
+          description: `Запись на массаж (Мастер ID: ${specialistId})`
+        }
+      })
+    ]);
+
+    res.json({ success: true, message: 'Запись на массаж успешно подтверждена!', newBalance: parseFloat(result[0].balance) });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/auth/massage/my:
+ *   get:
+ *     tags: [Guest Services]
+ *     summary: Получение всех записей на массаж постояльца
+ *     security:
+ *       - bearerAuth: []
+ */
+app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
+  try {
+    const list = await prisma.massageBookings.findMany({
+      where: { user_id: req.user.userId },
+      orderBy: { date: 'asc' }
+    });
+    res.json(list);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/auth/employee/guests:
+ *   get:
+ *     tags: [Employee Services]
+ *     summary: Получение списка реальных постояльцев на основе активных бронирований
+ *     security:
+ *       - bearerAuth: []
+ */
+app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
+  try {
+    const bookings = await prisma.bookings.findMany({
+      where: { booking_status: 'Confirmed' },
+      orderBy: { check_in: 'desc' }
+    });
+
+    const userIds = [...new Set(bookings.map(b => b.user_id))];
+    const roomIds = [...new Set(bookings.map(b => b.room_id))];
+
+    const users = await prisma.users.findMany({
+      where: { id: { in: userIds } }
+    });
+
+    const rooms = await prisma.rooms.findMany({
+      where: { id: { in: roomIds } }
+    });
+
+    const categoryMap = {
+      standard: 'Стандарт',
+      business: 'Бизнес',
+      lux: 'Люкс',
+      penthouse: 'Пентхаус'
+    };
+
+    const guestsLog = bookings.map(booking => {
+      const user = users.find(u => u.id === booking.user_id);
+      const room = rooms.find(r => r.id === booking.room_id);
+
+      const now = new Date();
+      const checkInDate = new Date(booking.check_in);
+      const checkOutDate = new Date(booking.check_out);
+
+      let statusRU = 'Ожидается';
+      let statusEN = 'Expected';
+
+      if (now >= checkInDate && now <= checkOutDate) {
+        statusRU = 'Проживает';
+        statusEN = 'Checked In';
+      } else if (now > checkOutDate) {
+        statusRU = 'Выселен';
+        statusEN = 'Checked Out';
+      }
+
+      const roomCategory = room ? (categoryMap[room.category] || room.category) : '';
+      const roomInfo = room ? `${roomCategory} №${room.room_number}` : 'Неизвестно';
+
+      return {
+        id: booking.id,
+        firstName: user ? user.first_name : 'Удален',
+        lastName: user ? user.last_name : 'Пользователь',
+        room: roomInfo,
+        dates: `${checkInDate.toLocaleDateString('ru-RU')} — ${checkOutDate.toLocaleDateString('ru-RU')}`,
+        statusRU,
+        statusEN
+      };
+    });
+
+    res.json(guestsLog);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// РАЗДЕЛ 5: администрирование
 /**
  * @openapi
  * /api/auth/admin/users:
@@ -853,5 +1080,203 @@ app.post('/api/auth/admin/tasks/assign', authenticateToken, requireRole(['Admin'
   }
 });
 
+
+/**
+ * @openapi
+ * /api/auth/services/purchase:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Покупка дополнительной услуги в счет проживания (Guest/Employee/Admin) с проверкой ограничений
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [serviceName, quantity]
+ *             properties:
+ *               serviceName: { type: string, example: "breakfast" }
+ *               quantity: { type: number, example: 1 }
+ */
+app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
+  const { serviceName, quantity } = req.body;
+  const qty = parseInt(quantity) || 1;
+
+  if (qty <= 0) {
+    return res.status(400).json({ error: 'Количество должно быть больше нуля.' });
+  }
+
+  const normalizedServiceName = serviceName ? serviceName.trim().toLowerCase() : '';
+
+  try {
+    const service = await prisma.additionalServices.findUnique({ where: { name: normalizedServiceName } });
+    if (!service) return res.status(404).json({ error: `Услуга "${serviceName}" не найдена в базе данных.` });
+
+    // 1. Находим активное бронирование пользователя
+    const activeBooking = await prisma.bookings.findFirst({
+      where: { user_id: req.user.userId, booking_status: 'Confirmed' },
+      orderBy: { created_at: 'desc' }
+    });
+
+    if (!activeBooking) {
+      return res.status(400).json({ error: 'Приобретать дополнительные услуги могут только гости с активным бронированием.' });
+    }
+
+    // 2. Находим комнату, привязанную к бронированию
+    const room = await prisma.rooms.findFirst({ 
+      where: { id: activeBooking.room_id } 
+    });
+
+    if (!room) {
+      return res.status(400).json({ error: 'Номер, привязанный к вашему бронированию, не найден в базе данных. Обратитесь к администратору.' });
+    }
+
+    const roomCategory = room.category ? room.category.trim().toLowerCase() : 'none';
+
+    // 3. Проверка ограничений по типам услуг
+
+    if (normalizedServiceName === 'breakfast') {
+      if (['business', 'lux', 'penthouse'].includes(roomCategory)) {
+        return res.status(400).json({ error: 'Завтрак уже включен в стоимость вашего номера по тарифу.' });
+      }
+    }
+
+    if (normalizedServiceName === 'lunch') {
+      if (['lux', 'penthouse'].includes(roomCategory)) {
+        return res.status(400).json({ error: 'Обед уже включен в стоимость вашего номера по тарифу.' });
+      }
+    }
+
+    if (normalizedServiceName === 'dinner') {
+      if (['lux', 'penthouse'].includes(roomCategory)) {
+        return res.status(400).json({ error: 'Ужин уже включен в стоимость вашего номера по тарифу.' });
+      }
+    }
+
+    // Б. Спа и Бани (saunas) — макс. 1 раз, если не включено в тариф
+    if (normalizedServiceName === 'saunas' || normalizedServiceName === 'sauna') {
+      if (['standard', 'business', 'lux', 'penthouse'].includes(roomCategory)) {
+        return res.status(400).json({ error: 'Доступ в SPA и термальные зоны уже включен в стоимость вашего номера.' });
+      }
+
+      const existingSaunasPurchase = await prisma.userServices.findFirst({
+        where: { user_id: req.user.userId, service_id: service.id }
+      });
+      if (existingSaunasPurchase || qty > 1) {
+        return res.status(400).json({ error: 'Доступ в SPA можно приобрести только один раз.' });
+      }
+    }
+
+    // В. Парковочные места 
+    if (normalizedServiceName === 'parking') {
+      const existingParkingPurchases = await prisma.userServices.findMany({
+        where: { user_id: req.user.userId, service_id: service.id }
+      });
+      const totalParkingQty = existingParkingPurchases.reduce((acc, curr) => acc + curr.quantity, 0);
+
+      let maxParking = 3;
+      if (roomCategory === 'penthouse') {
+        maxParking = 2;
+      }
+
+      if (totalParkingQty + qty > maxParking) {
+        return res.status(400).json({ 
+          error: roomCategory === 'penthouse'
+            ? `Для Пентхауса уже включено 1 VIP-место. Вы можете докупить не более 2 дополнительных мест. У вас уже приобретено: ${totalParkingQty}.`
+            : `Превышен лимит парковочных мест. Максимум 3 места на один номер. У вас уже приобретено: ${totalParkingQty}.`
+        });
+      }
+    }
+
+    // 4. Списание средств и проведение транзакции
+    const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
+    const cost = parseFloat(service.price) * qty;
+
+    if (parseFloat(user.balance) < cost) {
+      return res.status(400).json({ error: 'Недостаточно средств на балансе для покупки услуги' });
+    }
+
+    const newBalance = parseFloat(user.balance) - cost;
+
+    const result = await prisma.$transaction([
+      prisma.users.update({ where: { id: req.user.userId }, data: { balance: newBalance } }),
+      prisma.userServices.create({ 
+        data: { 
+          id: crypto.randomUUID(), 
+          user_id: req.user.userId, 
+          service_id: service.id, 
+          quantity: qty, 
+          payment_status: 'Paid' 
+        } 
+      }),
+      prisma.transactions.create({ 
+        data: { 
+          id: crypto.randomUUID(), 
+          user_id: req.user.userId, 
+          type: 'SERVICE', 
+          amount: cost, 
+          description: `Покупка услуги: ${serviceName.toUpperCase()} (x${qty})` 
+        } 
+      })
+    ]);
+
+    res.json({ success: true, message: 'Услуга добавлена в проживание!', newBalance: parseFloat(result[0].balance) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/auth/services/my:
+ *   get:
+ *     tags: [Payments]
+ *     summary: Получение всех купленных услуг постояльца
+ *     security:
+ *       - bearerAuth: []
+ */
+app.get('/api/auth/services/my', authenticateToken, async (req, res) => {
+  try {
+    const list = await prisma.userServices.findMany({
+      where: { user_id: req.user.userId },
+      orderBy: { created_at: 'desc' }
+    });
+
+    const services = await prisma.additionalServices.findMany();
+    const result = list.map(item => {
+      const s = services.find(srv => srv.id === item.service_id);
+      return {
+        id: item.id,
+        name: s ? s.name : 'Unknown',
+        quantity: item.quantity,
+        price: s ? parseFloat(s.price) : 0,
+        createdAt: item.created_at
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/auth/google/url', (req, res) => {
+  const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
+  const options = {
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    access_type: 'offline',
+    response_type: 'code',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'].join(' ')
+  };
+  res.json({ url: `${rootUrl}?${new URLSearchParams(options).toString()}` });
+});
+
 const PORT = process.env.PORT || 3003;
-app.listen(PORT, () => console.log(`🔒 Auth Service & Swagger запущен на порту ${PORT}`));
+app.listen(PORT, async () => {
+  console.log(`🔒 Auth Service & Swagger запущен на порту ${PORT}`);
+  await seedAdditionalServices();
+});

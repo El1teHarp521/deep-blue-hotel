@@ -1,16 +1,31 @@
 import React, { useState } from 'react';
 import { Box, Container, Typography, Button, CardMedia, Select, MenuItem, Paper } from '@mui/material';
+import axios from 'axios';
+import { formatPrice } from '../utils/price';
 
-export default function ParkingPage({ t }) {
+export default function ParkingPage({ t, currency, lang, user }) {
   const [spots, setSpots] = useState(1);
   const [booked, setBooked] = useState(null);
 
-  const handleBooking = () => {
-    const startNum = Math.floor(Math.random() * 90) + 1;
-    const result = [];
-    for(let i=0; i<spots; i++) result.push(startNum + i);
-    setBooked(result);
+  const handleBooking = async () => {
+    try {
+      const response = await axios.post('http://localhost:3003/api/auth/services/purchase', {
+        serviceName: 'parking',
+        quantity: spots
+      });
+      if (response.data.success) {
+        const startNum = Math.floor(Math.random() * 90) + 1;
+        const result = [];
+        for(let i=0; i<spots; i++) result.push(startNum + i);
+        setBooked(result);
+        window.alert(lang === 'RU' ? 'Места забронированы!' : 'Parking spots reserved!');
+      }
+    } catch (error) {
+      window.alert(error.response?.data?.error || 'Ошибка при пополнении/оплате');
+    }
   };
+
+  const showPurchaseBtn = user && ['Guest', 'Employee', 'Admin'].includes(user.role);
 
   return (
     <Box sx={{ pt: 22, pb: 10 }}>
@@ -30,12 +45,20 @@ export default function ParkingPage({ t }) {
         <Container maxWidth="md">
           <Paper sx={{ p: 6, borderRadius: 0, bgcolor: 'background.paper', textAlign: 'center' }}>
              <Typography variant="h5" sx={{ mb: 3, color: 'text.primary', fontWeight: 'bold' }}>{t.parkSelect}</Typography>
+             <Typography variant="h6" color="secondary" sx={{ fontWeight: 'bold', mb: 3 }}>
+               {formatPrice(3700, currency, lang)} / {lang === 'RU' ? 'место' : 'spot'}
+             </Typography>
              <Select fullWidth value={spots} onChange={(e) => setSpots(e.target.value)} sx={{ mb: 4, borderRadius: 0 }}>
-               <MenuItem value={1}>1 место</MenuItem>
-               <MenuItem value={2}>2 места</MenuItem>
-               <MenuItem value={3}>3 места</MenuItem>
+               <MenuItem value={1}>1 {lang === 'RU' ? 'место' : 'spot'}</MenuItem>
+               <MenuItem value={2}>2 {lang === 'RU' ? 'места' : 'spots'}</MenuItem>
+               <MenuItem value={3}>3 {lang === 'RU' ? 'места' : 'spots'}</MenuItem>
              </Select>
-             <Button variant="contained" size="large" onClick={handleBooking} sx={{ px: 8, borderRadius: 0 }}>{t.book}</Button>
+             
+             {showPurchaseBtn && (
+               <Button variant="contained" size="large" onClick={handleBooking} sx={{ px: 8, borderRadius: 0 }}>
+                 {t.book}
+               </Button>
+             )}
              
              {booked && (
                <Box sx={{ mt: 4, p: 3, bgcolor: 'primary.main', color: 'text.primary', textAlign: 'center', borderRadius: 0 }}>

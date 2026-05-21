@@ -37,31 +37,66 @@ model Transactions {
   id          String   @id @default(uuid()) @db.Uuid
   user_id     String   @db.Uuid
   amount      Decimal
-  type        String   // REFILL, BOOKING, SERVICE, REFUND
+  type        String   // REFILL, BOOKING, SERVICE, REFUND, DEBT_PAY
   status      String   @default("Success")
   description String
   created_at  DateTime @default(now())
 }
 
-model Bookings {
-  id          String   @id @default(uuid()) @db.Uuid
-  user_id     String   @db.Uuid
-  room_id     String   @db.Uuid
-  check_in    DateTime
-  check_out   DateTime
-  status      String   @default("Confirmed")
-  created_at  DateTime @default(now())
+model Rooms {
+  id            String   @id @default(uuid()) @db.Uuid
+  room_number   String   @unique
+  category      String   
+  price         Decimal  
+  status        String   @default("Available") 
+  description   String?
 }
 
-// ТАБЛИЦА: ЗАПРОСЫ НА УБОРКУ (С ДАТОЙ ОБНОВЛЕНИЯ)
+model Bookings {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  room_id        String   @db.Uuid
+  check_in       DateTime
+  check_out      DateTime
+  payment_status String   @default("Unpaid") // Paid, Unpaid
+  booking_status String   @default("Confirmed")
+  created_at     DateTime @default(now())
+}
+
+model AdditionalServices {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @unique
+  price      Decimal  
+}
+
+model UserServices {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  service_id     String   @db.Uuid
+  quantity       Int      @default(1)
+  payment_status String   @default("Paid")
+  created_at     DateTime @default(now())
+}
+
+// ТАБЛИЦА: РЕАЛЬНЫЕ ЗАПИСИ НА МАССАЖ (ТЗ)
+model MassageBookings {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  specialist_id  Int      // ID мастера: 1, 2, 3
+  date           String   // Формат YYYY-MM-DD
+  time           String   // Формат HH:MM
+  status         String   @default("Confirmed")
+  created_at     DateTime @default(now())
+}
+
 model CleaningRequests {
   id                    String   @id @default(uuid()) @db.Uuid
   user_id               String   @db.Uuid
   room_id               String   @db.Uuid
-  status                String   @default("Pending") // Pending, Assigned, InProgress, Completed
+  status                String   @default("Pending") 
   assigned_employee_id  String?  @db.Uuid
   created_at            DateTime @default(now())
-  updated_at            DateTime @default(now()) @updatedAt // ДАТА И ВРЕМЯ ВЫПОЛНЕНИЯ
+  updated_at            DateTime @default(now()) @updatedAt
 }
 
 model EmployeeSchedules {

@@ -13,7 +13,6 @@ export const translations = {
     pricePerNight: 'Цена за ночь',
     peopleCount: 'чел.',
 
-    // Фильтры
     searchPlaceholder: 'Поиск по названию номера...',
     categoryLabel: 'Категория',
     allCategories: 'Все категории',
@@ -48,7 +47,6 @@ export const translations = {
     roomStandard: 'СТАНДАРТ DEEPBLUE',
     roomStandardDesc: 'Комфорт, эргономичный дизайн и уют в каждой детали вашего пребывания.',
 
-    // ДЕТАЛИ НОМЕРОВ
     roomDetails: {
       standard: {
         title: 'СТАНДАРТ DEEPBLUE',
@@ -99,7 +97,7 @@ export const translations = {
     poolDesc: 'Погрузитесь в атмосферу полного релакса в наших панорамных бассейнах. Кристально чистая вода и безупречный сервис.',
     spaHours: '04:30 – 01:30',
     massageTitle: 'Пространство гармонии',
-    massageSub: 'Massage',
+    massageSub: 'Массаж',
     massageDesc: 'Исключительные оздоровительные ритуалы и массажные техники от восточных мастеров.',
     specialists: 'Наши специалисты',
 
@@ -136,7 +134,48 @@ export const translations = {
     createAccount: 'Создать аккаунт',
     signInBtn: 'Войти',
     googleSignIn: 'Войти через Google',
-    googleSignUp: 'Зарегистрироваться через Google'
+    googleSignUp: 'Зарегистрироваться через Google',
+
+    cabinetTitle: 'Личный кабинет',
+    tabProfile: 'Профиль',
+    tabBalance: 'Баланс & Карты',
+    tabActive: 'Активные брони',
+    tabHistory: 'История операций',
+    tabEmployee: 'Задачи & Расписание',
+    tabGuests: 'Учет постояльцев',
+    tabAdmin: 'Админ-панель',
+    personalData: 'Личные данные',
+    roleInSystem: 'Роль в системе',
+    roleUser: 'Пользователь',
+    roleGuest: 'Постоялец',
+    googleStatusLinked: 'Google аккаунт привязан',
+    googleStatusUnlinked: 'Не привязан',
+    btnGoogleLink: 'Привязать Google Account',
+    btnGoogleUnlink: 'Отвязать Google Account',
+    btnSave: 'СОХРАНИТЬ ИЗМЕНЕНИЯ',
+    currentBalance: 'Текущий баланс',
+    btnTopUp: 'ПОПОЛНИТЬ БАЛАНС',
+    cardLinkedStatus: 'Карта привязана',
+    cardDelete: 'Удалить',
+    cardNoLinked: 'У вас нет привязанной карты',
+    cardAddBtn: 'Привязать карту',
+    activeServicesTitle: 'Активные услуги',
+    cleaningRequestBtn: 'Запросить уборку в номере',
+    assignedTasksTitle: 'Мои Задачи на сегодня',
+    guestLoggingTitle: 'Учет постояльцев',
+    userManagementTitle: 'Управление пользователями',
+    taskAssignTitle: 'Распределение задач',
+    assignToMe: 'Назначить на меня',
+    transType: 'Тип',
+    transAmount: 'Сумма',
+    transDate: 'Дата',
+    transDesc: 'Описание',
+    transRefill: 'Пополнение',
+    transWithdraw: 'Списание',
+    cleaningStatusPending: 'Ожидает',
+    cleaningStatusAssigned: 'Назначено',
+    cleaningStatusProgress: 'В процессе',
+    cleaningStatusCompleted: 'Выполнено'
   },
   EN: {
     rooms: 'Rooms',
@@ -186,7 +225,6 @@ export const translations = {
     roomStandard: 'DEEPBLUE STANDARD',
     roomStandardDesc: 'Comfort, ergonomic design, and supreme luxury in every detail of your stay.',
 
-    // Room Details
     roomDetails: {
       standard: {
         title: 'DEEPBLUE STANDARD',
@@ -274,6 +312,48 @@ export const translations = {
     createAccount: 'Create Account',
     signInBtn: 'Sign In',
     googleSignIn: 'Sign in with Google',
-    googleSignUp: 'Sign up with Google'
+    googleSignUp: 'Sign up with Google',
+
+    // PERSONAL CABINET (EN)
+    cabinetTitle: 'Personal Profile',
+    tabProfile: 'Profile',
+    tabBalance: 'Balance & Cards',
+    tabActive: 'Active Bookings',
+    tabHistory: 'Transaction History',
+    tabEmployee: 'Tasks & Schedule',
+    tabGuests: 'Guest Log',
+    tabAdmin: 'Admin Dashboard',
+    personalData: 'Personal Information',
+    roleInSystem: 'Role in System',
+    roleUser: 'User',
+    roleGuest: 'Guest',
+    googleStatusLinked: 'Google Account linked',
+    googleStatusUnlinked: 'Not linked',
+    btnGoogleLink: 'Link Google Account',
+    btnGoogleUnlink: 'Unlink Google Account',
+    btnSave: 'SAVE CHANGES',
+    currentBalance: 'Current Balance',
+    btnTopUp: 'TOP UP BALANCE',
+    cardLinkedStatus: 'Card linked',
+    cardDelete: 'Delete',
+    cardNoLinked: 'No linked cards found',
+    cardAddBtn: 'Link Bank Card',
+    activeServicesTitle: 'Active Services & Privileges',
+    cleaningRequestBtn: 'Request Room Cleaning',
+    assignedTasksTitle: 'My Tasks Today',
+    guestLoggingTitle: 'Guest Log',
+    userManagementTitle: 'User Management',
+    taskAssignTitle: 'Task Assignment',
+    assignToMe: 'Assign to me',
+    transType: 'Type',
+    transAmount: 'Amount',
+    transDate: 'Date',
+    transDesc: 'Description',
+    transRefill: 'Deposit',
+    transWithdraw: 'Withdrawal',
+    cleaningStatusPending: 'Pending',
+    cleaningStatusAssigned: 'Assigned',
+    cleaningStatusProgress: 'In Progress',
+    cleaningStatusCompleted: 'Completed'
   }
 };
