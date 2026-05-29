@@ -16,6 +16,17 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
   const [massageTime, setMassageTime] = useState('14:00');
   const [selectedSpecialist, setSelectedSpecialist] = useState(1);
 
+  // Получение сегодняшней даты
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const todayStr = getTodayDateString();
+
   const handlePurchaseService = async (serviceName) => {
     try {
       const response = await axios.post('http://localhost:3003/api/auth/services/purchase', {
@@ -38,6 +49,15 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
 
     if (!massageDate || !massageTime) {
       setMassageAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, заполните дату и время!' : 'Please fill date and time!' });
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(massageDate);
+
+    if (selectedDate < today) {
+      setMassageAlert({ type: 'error', text: lang === 'RU' ? 'Вы не можете записаться на прошедшую дату!' : 'You cannot book a past date!' });
       return;
     }
 
@@ -187,7 +207,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                 </Select>
               </Box>
 
-              {/* Выбор даты */}
+              {/* Выбор даты с блокировкой прошедших */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                   {lang === 'RU' ? 'ВЫБЕРИТЕ ДАТУ' : 'SELECT DATE'}
@@ -195,6 +215,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                 <input 
                   type="date" 
                   required
+                  min={todayStr}
                   value={massageDate} 
                   onChange={(e) => setMassageDate(e.target.value)} 
                   style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
