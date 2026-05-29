@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, CardMedia, Button, Paper, TextField, MenuItem, Select, Chip } from '@mui/material';
+import { Box, Container, Typography, CardMedia, Button, Paper, TextField, MenuItem, Select, Chip, Pagination } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatPrice } from '../utils/price';
@@ -7,14 +7,7 @@ import { formatPrice } from '../utils/price';
 export default function RoomsPage({ t, currency, lang }) {
   const navigate = useNavigate();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [category, setCategory] = useState('all');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [checkDate, setCheckDate] = useState('');
-
-  const [dbRooms, setDbRooms] = useState([]); 
-
+  // Функция для получения сегодняшней даты
   const getTodayDateString = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -24,6 +17,19 @@ export default function RoomsPage({ t, currency, lang }) {
   };
 
   const todayStr = getTodayDateString();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [category, setCategory] = useState('all');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  
+  const [checkDate, setCheckDate] = useState(todayStr);
+
+  const [dbRooms, setDbRooms] = useState([]); 
+
+  // Состояние пагинации
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 2;
 
   const categories = [
     { id: 'standard', title: t.roomStandard, img: '/images/room-standard-1.jpg', d: t.roomStandardDesc, priceRub: 15000 },
@@ -42,6 +48,10 @@ export default function RoomsPage({ t, currency, lang }) {
       .catch(err => console.error("Ошибка загрузки номеров:", err));
   }, [checkDate]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, category, minPrice, maxPrice, checkDate]);
+
   const filteredCategories = categories.filter((cat) => {
     const matchesSearch = cat.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = category === 'all' || cat.id === category;
@@ -56,6 +66,16 @@ export default function RoomsPage({ t, currency, lang }) {
 
     return matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice;
   });
+
+  const pageCount = Math.ceil(filteredCategories.length / itemsPerPage);
+  const paginatedCategories = filteredCategories.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  const getFreeRoomsCount = (categoryKey) => {
+    const roomsInCat = dbRooms.filter(r => r.category === categoryKey);
+    if (roomsInCat.length === 0) return 0;
+    const freeRooms = roomsInCat.filter(room => !room.isOccupied);
+    return freeRooms.length;
+  };
 
   const getAvailabilityStatus = (categoryKey) => {
     if (!checkDate) return null;
@@ -107,7 +127,7 @@ export default function RoomsPage({ t, currency, lang }) {
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>ПРОВЕРИТЬ НА ДАТУ</Typography>
               <input 
                 type="date" 
-                min={todayStr} 
+                min={todayStr}
                 value={checkDate} 
                 onChange={(e) => setCheckDate(e.target.value)} 
                 style={{ width: '100%', padding: '8.5px 14px', border: '1px solid rgba(128,128,128,0.2)', fontFamily: 'inherit', background: 'transparent', color: 'inherit', outline: 'none', fontSize: '0.9rem' }} 
@@ -116,22 +136,52 @@ export default function RoomsPage({ t, currency, lang }) {
           </Box>
         </Paper>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 4 }}>
-          {filteredCategories.map((cat, i) => (
-            <Paper key={i} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <CardMedia component="img" image={cat.img} sx={{ height: 350, objectFit: 'cover', borderRadius: 0, mb: 3 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, gap: 1 }}>
-                <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', fontWeight: 600, minHeight: 60, color: 'text.primary', flex: 1 }}>{cat.title}</Typography>
-                {getAvailabilityStatus(cat.id)}
-              </Box>
-              <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary', opacity: 0.8, minHeight: 100, lineHeight: 1.6 }}>{cat.d}</Typography>
-              <Box sx={{ mt: 'auto' }}>
-                <Typography variant="h5" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{formatPrice(cat.priceRub, currency, lang)}</Typography>
-                <Button variant="contained" fullWidth onClick={() => navigate(`/rooms/${cat.id}`)} sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0, boxShadow: 0, '&:hover': { bgcolor: '#a68a64' } }}>{t.learnMore}</Button>
-              </Box>
-            </Paper>
-          ))}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr' }, gap: 4 }}>
+          {paginatedCategories.map((cat, i) => {
+            const freeRoomsCount = getFreeRoomsCount(cat.id);
+            return (
+              <Paper key={i} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <CardMedia component="img" image={cat.img} sx={{ height: 350, objectFit: 'cover', borderRadius: 0, mb: 3 }} />
+                <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1, gap: 1 }}>
+                  <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', fontWeight: 600, minHeight: 60, color: 'text.primary', flex: 1 }}>{cat.title}</Typography>
+                  {getAvailabilityStatus(cat.id)}
+                </Box>
+
+                {/* Вывод количества оставшихся свободных номеров на выбранную дату */}
+                {checkDate && (
+                  <Typography variant="body2" sx={{ color: freeRoomsCount > 0 ? 'success.main' : 'error.main', fontWeight: 'bold', mb: 2 }}>
+                    {lang === 'RU' 
+                      ? `Осталось свободных номеров: ${freeRoomsCount}` 
+                      : `Available rooms left: ${freeRoomsCount}`}
+                  </Typography>
+                )}
+
+                <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary', opacity: 0.8, minHeight: 100, lineHeight: 1.6 }}>{cat.d}</Typography>
+                <Box sx={{ mt: 'auto' }}>
+                  <Typography variant="h5" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{formatPrice(cat.priceRub, currency, lang)}</Typography>
+                  <Button variant="contained" fullWidth onClick={() => navigate(`/rooms/${cat.id}`)} sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0, boxShadow: 0, '&:hover': { bgcolor: '#a68a64' } }}>{t.learnMore}</Button>
+                </Box>
+              </Paper>
+            );
+          })}
         </Box>
+
+        {/* Блок переключателя страниц пагинации */}
+        {pageCount > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+            <Pagination 
+              count={pageCount} 
+              page={page} 
+              onChange={(e, val) => setPage(val)} 
+              color="primary" 
+              size="large"
+              shape="rounded"
+              sx={{
+                '& .MuiPaginationItem-root': { borderRadius: 0 }
+              }}
+            />
+          </Box>
+        )}
       </Container>
     </Box>
   );

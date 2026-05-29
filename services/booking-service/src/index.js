@@ -16,6 +16,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Мидлвар авторизации
 const authenticateToken = (req, res, next) => {
   const token = req.cookies.deepblue_session;
   if (!token) return res.status(401).json({ error: 'Неавторизован' });
@@ -29,6 +30,7 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+// --- наполнение бд реальными номерами ---
 app.get('/api/rooms/seed', async (req, res) => {
   try {
     await prisma.rooms.deleteMany();
@@ -94,13 +96,11 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Дата выезда должна быть позже даты заселения' });
   }
 
-  // Валидация количества проживающих гостей
   const guestsNum = parseInt(guestsCount) || 1;
   if (guestsNum <= 0) {
     return res.status(400).json({ error: 'Количество гостей должно быть не менее 1 человека.' });
   }
 
-  // Обновленные лимиты вместимости номеров
   const maxGuestsMap = {
     standard: 3,
     business: 5,
@@ -114,13 +114,26 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     });
   }
 
+  // Вычисляем количество ночей
   const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
   try {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    // Поиск свободных комнат этой категории на выбранные даты
+    const existingActiveBooking = await prisma.bookings.findFirst({
+      where: {
+        user_id: req.user.userId,
+        booking_status: 'Confirmed'
+      }
+    });
+
+    if (existingActiveBooking) {
+      return res.status(400).json({ 
+        error: 'По правилам отеля, вы не можете забронировать более одного номера одновременно на одну учетную запись.' 
+      });
+    }
+
     const availableRooms = await prisma.rooms.findMany({
       where: {
         category: category,
@@ -209,7 +222,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// диннамическая занятость номеров
+// --- динамическая проверка занятости номеров ---
 app.get('/api/rooms', async (req, res) => {
   const { date } = req.query;
 
@@ -240,6 +253,7 @@ app.get('/api/rooms', async (req, res) => {
   }
 });
 
+// активное бронирование
 app.get('/api/bookings/active', authenticateToken, async (req, res) => {
   try {
     const activeBooking = await prisma.bookings.findFirst({
@@ -271,8 +285,10 @@ app.get('/api/bookings/active', authenticateToken, async (req, res) => {
 });
 
 
+// АДМИНИСТРАТИВНЫЕ РОУТЫ (ADMIN ONLY)
 
 
+// 1. Получить все бронирования отеля с именами гостей и номерами комнат
 app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
@@ -346,7 +362,7 @@ app.put('/api/admin/bookings/:id/status', authenticateToken, async (req, res) =>
   }
 });
 
-// 4.  удалить запись бронирования из БД
+// 4. Полностью удалить запись бронирования из БД
 app.delete('/api/admin/bookings/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
