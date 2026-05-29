@@ -16,7 +16,6 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Мидлвар авторизации
 const authenticateToken = (req, res, next) => {
   const token = req.cookies.deepblue_session;
   if (!token) return res.status(401).json({ error: 'Неавторизован' });
@@ -35,7 +34,6 @@ app.get('/api/rooms/seed', async (req, res) => {
     await prisma.rooms.deleteMany();
     const roomsToCreate = [];
 
-    // Стандарт: с 210 по 320 (Цена: 15 000 ₽)
     for (let i = 210; i <= 320; i++) {
       roomsToCreate.push({
         id: crypto.randomUUID(),
@@ -46,7 +44,6 @@ app.get('/api/rooms/seed', async (req, res) => {
       });
     }
 
-    // Бизнес: с 421 по 470 (Цена: 34 000 ₽)
     for (let i = 421; i <= 470; i++) {
       roomsToCreate.push({
         id: crypto.randomUUID(),
@@ -57,7 +54,6 @@ app.get('/api/rooms/seed', async (req, res) => {
       });
     }
 
-    // Люкс: с 560 по 607 (Цена: 67 000 ₽)
     for (let i = 560; i <= 607; i++) {
       roomsToCreate.push({
         id: crypto.randomUUID(),
@@ -68,7 +64,6 @@ app.get('/api/rooms/seed', async (req, res) => {
       });
     }
 
-    // Пентхаус: 1 номер (№701, Цена: 152 000 ₽)
     roomsToCreate.push({
       id: crypto.randomUUID(),
       room_number: '701',
@@ -84,9 +79,9 @@ app.get('/api/rooms/seed', async (req, res) => {
   }
 });
 
-// --- Создание бронирования ---
+// создание бронирования
 app.post('/api/bookings', authenticateToken, async (req, res) => {
-  const { category, checkIn, checkOut, payNow } = req.body;
+  const { category, checkIn, checkOut, payNow, guestsCount } = req.body;
 
   if (!category || !checkIn || !checkOut) {
     return res.status(400).json({ error: 'Пожалуйста, заполните все поля бронирования' });
@@ -99,12 +94,33 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Дата выезда должна быть позже даты заселения' });
   }
 
+  // Валидация количества проживающих гостей
+  const guestsNum = parseInt(guestsCount) || 1;
+  if (guestsNum <= 0) {
+    return res.status(400).json({ error: 'Количество гостей должно быть не менее 1 человека.' });
+  }
+
+  // Обновленные лимиты вместимости номеров
+  const maxGuestsMap = {
+    standard: 3,
+    business: 5,
+    lux: 7,
+    penthouse: 15
+  };
+  const maxAllowed = maxGuestsMap[category.toLowerCase()] || 4;
+  if (guestsNum > maxAllowed) {
+    return res.status(400).json({ 
+      error: `В категории "${category.toUpperCase()}" может проживать максимум ${maxAllowed} человек(а).` 
+    });
+  }
+
   const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
   try {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
+    // Поиск свободных комнат этой категории на выбранные даты
     const availableRooms = await prisma.rooms.findMany({
       where: {
         category: category,
@@ -158,7 +174,8 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
           check_in: start,
           check_out: end,
           payment_status: paymentStatus,
-          booking_status: 'Confirmed'
+          booking_status: 'Confirmed',
+          guests_count: guestsNum
         }
       }),
       prisma.users.update({
@@ -192,8 +209,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// Получение номеров 
-
+// диннамическая занятость номеров
 app.get('/api/rooms', async (req, res) => {
   const { date } = req.query;
 
@@ -255,9 +271,8 @@ app.get('/api/bookings/active', authenticateToken, async (req, res) => {
 });
 
 
-// админ роуты
 
-// 1. Получить все бронирования отеля с именами гостей и номерами комнат
+
 app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
@@ -331,6 +346,7 @@ app.put('/api/admin/bookings/:id/status', authenticateToken, async (req, res) =>
   }
 });
 
+// 4.  удалить запись бронирования из БД
 app.delete('/api/admin/bookings/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });

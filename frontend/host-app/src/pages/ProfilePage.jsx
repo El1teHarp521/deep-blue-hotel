@@ -365,7 +365,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     }
   };
 
-  // Вычисление динамического статуса номера
   const getRoomStatusLabel = (room) => {
     if (room.status === 'Maintenance') {
       return lang === 'RU' ? 'Обслуживание' : 'Maintenance';
@@ -512,7 +511,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* баланс карты*/}
+        {/* баланс и карты*/}
         {tabValue === 'balance' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' }, gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
@@ -558,7 +557,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     {lang === 'RU' ? `Даты: ${new Date(activeBooking.checkIn).toLocaleDateString()} — ${new Date(activeBooking.checkOut).toLocaleDateString()}` : `Dates: ${new Date(activeBooking.checkIn).toLocaleDateString()} — ${new Date(activeBooking.checkOut).toLocaleDateString()}`}
                   </Typography>
-                  
                   <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, mt: 2, alignItems: 'center' }}>
                     <Chip 
                       label={activeBooking.paymentStatus === 'Paid' ? (lang === 'RU' ? 'Оплачен' : 'Paid') : (lang === 'RU' ? 'Задолженность' : 'Debt')} 
@@ -669,7 +667,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/* задачи сотрудника*/}
+        {/* задача сотрудника*/}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -702,7 +700,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- Вучет постояльцев --- */}
+        {/* учет постояльцев */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.guestLoggingTitle}</Typography>
@@ -745,7 +743,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* админ панель*/}
+        {/* админ панель */}
         {tabValue === 'admin' && user?.role === 'Admin' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             {/* Карточка 1: Управление пользователями */}
@@ -784,7 +782,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               </TableContainer>
             </Paper>
 
-            {/* Карточка 2: Управление номерным фондом  */}
+            {/* Карточка 2: Управление номерным фондом (Цены и статусы) */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
                 {lang === 'RU' ? 'Управление отелем (Цены и статусы номеров)' : 'Hotel Rooms Management (Prices & Statuses)'}
@@ -849,6 +847,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                     <TableRow>
                       <TableCell>{lang === 'RU' ? 'Постоялец / Гость' : 'Guest'}</TableCell>
                       <TableCell>{lang === 'RU' ? 'Номер' : 'Room'}</TableCell>
+                      <TableCell>{lang === 'RU' ? 'Кол-во гостей' : 'Guests'}</TableCell>
                       <TableCell>{lang === 'RU' ? 'Даты заселения' : 'Stay Dates'}</TableCell>
                       <TableCell>{lang === 'RU' ? 'Оплата' : 'Payment'}</TableCell>
                       <TableCell>{lang === 'RU' ? 'Статус брони' : 'Status'}</TableCell>
@@ -863,6 +862,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                           <Typography variant="caption" color="text.secondary">{b.guestEmail}</Typography>
                         </TableCell>
                         <TableCell>{b.roomCategory.toUpperCase()} №{b.roomNumber}</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>{b.guests_count || 1}</TableCell>
                         <TableCell>
                           {new Date(b.check_in).toLocaleDateString()} — {new Date(b.check_out).toLocaleDateString()}
                         </TableCell>
@@ -923,7 +923,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         )}
       </Container>
 
-      {/* модал окно пополнения баланса */}
+      {/* --- пополнение баланса */}
       <Dialog 
         open={openRefillModal} 
         onClose={() => setOpenRefillModal(false)}

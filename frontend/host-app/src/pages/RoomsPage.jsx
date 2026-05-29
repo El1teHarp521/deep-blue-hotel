@@ -15,6 +15,16 @@ export default function RoomsPage({ t, currency, lang }) {
 
   const [dbRooms, setDbRooms] = useState([]); 
 
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const todayStr = getTodayDateString();
+
   const categories = [
     { id: 'standard', title: t.roomStandard, img: '/images/room-standard-1.jpg', d: t.roomStandardDesc, priceRub: 15000 },
     { id: 'business', title: t.roomRoyal, img: '/images/room-business-1.jpg', d: t.roomRoyalDesc, priceRub: 34000 },
@@ -95,7 +105,13 @@ export default function RoomsPage({ t, currency, lang }) {
             </Box>
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>ПРОВЕРИТЬ НА ДАТУ</Typography>
-              <input type="date" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} style={{ width: '100%', padding: '8.5px 14px', border: '1px solid rgba(128,128,128,0.2)', fontFamily: 'inherit', background: 'transparent', color: 'inherit', outline: 'none', fontSize: '0.9rem' }} />
+              <input 
+                type="date" 
+                min={todayStr} 
+                value={checkDate} 
+                onChange={(e) => setCheckDate(e.target.value)} 
+                style={{ width: '100%', padding: '8.5px 14px', border: '1px solid rgba(128,128,128,0.2)', fontFamily: 'inherit', background: 'transparent', color: 'inherit', outline: 'none', fontSize: '0.9rem' }} 
+              />
             </Box>
           </Box>
         </Paper>

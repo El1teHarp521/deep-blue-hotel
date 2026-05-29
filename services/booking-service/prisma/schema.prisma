@@ -16,6 +16,7 @@ model Bookings {
   created_at     DateTime @default(now())
   booking_status String   @default("Confirmed")
   payment_status String   @default("Unpaid")
+  guests_count   Int      @default(1)
 }
 
 model CleaningRequests {

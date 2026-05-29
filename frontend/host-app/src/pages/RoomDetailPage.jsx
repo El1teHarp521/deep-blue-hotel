@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Box, Container, Typography, CardMedia, Button, Paper, 
-  Divider, IconButton, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, Stack, Alert, TextField 
+  Divider, IconButton, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, Stack, Alert, TextField, MenuItem, Select
 } from '@mui/material';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
@@ -18,10 +18,19 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const navigate = useNavigate();
 
   const [openCheckout, setOpenCheckout] = useState(false);
+  const [openPaymentModal, setOpenPaymentModal] = useState(false);
   const [bookingAlert, setBookingAlert] = useState(null);
+  const [paymentAlert, setPaymentAlert] = useState(null);
 
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [guestsCount, setGuestsCount] = useState(1);
+
+  const [cards, setCards] = useState([]);
+  const [useLinkedCard, setUseLinkedCard] = useState(false);
+  const [newCardNumber, setNewCardNumber] = useState('');
+  const [newExpireDate, setNewExpireDate] = useState('');
+  const [cvc, setCvc] = useState('');
 
   const gallery = {
     standard: ['/images/room-standard-1.jpg', '/images/room-standard-2.jpg', '/images/room-standard-3.jpg', '/images/room-standard-4.jpg'],
@@ -34,6 +43,52 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const details = t.roomDetails[roomType] || t.roomDetails.standard;
 
   const [activeSlide, setActiveSlide] = useState(0);
+
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': { borderRadius: 0 }
+  };
+
+  // Получение сегодняшней даты 
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const todayStr = getTodayDateString();
+
+  //  лимиты по гостям
+  const maxGuestsMap = {
+    standard: 3,
+    business: 5,
+    lux: 7,
+    penthouse: 15
+  };
+  const maxGuests = maxGuestsMap[roomType] || 4;
+
+  const getCustomCapacityString = () => {
+    const capacities = {
+      standard: lang === 'RU' ? 'До 3 человек' : 'Up to 3 people',
+      business: lang === 'RU' ? 'До 5 человек' : 'Up to 5 people',
+      lux: lang === 'RU' ? 'До 7 человек' : 'Up to 7 people',
+      penthouse: lang === 'RU' ? 'До 15 человек' : 'Up to 15 people'
+    };
+    return capacities[roomType] || details.capacity;
+  };
+
+  // Загрузка привязанных карт
+  useEffect(() => {
+    if (openCheckout) {
+      axios.get('http://localhost:3003/api/auth/cards')
+        .then(res => {
+          setCards(res.data);
+          if (res.data.length > 0) setUseLinkedCard(true);
+        })
+        .catch(err => console.error("Ошибка загрузки карт:", err));
+    }
+  }, [openCheckout]);
 
   const handleNext = () => {
     setActiveSlide((prev) => (prev === images.length - 1 ? 0 : prev + 1));
@@ -52,12 +107,40 @@ export default function RoomDetailPage({ t, currency, lang }) {
     return details.priceRub * nights;
   };
 
-  const handleConfirmBooking = async (payNow) => {
+  // оплатить сейчас
+  const handlePayNowClick = () => {
     setBookingAlert(null);
 
     if (!checkIn || !checkOut) {
-      setBookingAlert({ type: 'error', text: 'Пожалуйста, заполните даты заезда и выезда!' });
+      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, заполните даты заезда и выезда!' : 'Please fill in check-in and check-out dates!' });
       return;
+    }
+
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    if (start >= end) {
+      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Дата выезда должна быть позже даты заселения!' : 'Check-out date must be later than check-in date!' });
+      return;
+    }
+
+    setOpenCheckout(false);
+    setOpenPaymentModal(true);
+  };
+
+  const handleConfirmBooking = async (payNow) => {
+    setBookingAlert(null);
+    setPaymentAlert(null);
+
+    if (payNow && (cvc.length !== 3 || isNaN(parseInt(cvc)))) {
+      setPaymentAlert({ type: 'error', text: lang === 'RU' ? 'Неверный CVV (3 цифры)' : 'Invalid CVV (3 digits)' });
+      return;
+    }
+
+    if (payNow && !useLinkedCard) {
+      if (newCardNumber.length !== 16 || newExpireDate.length !== 5) {
+        setPaymentAlert({ type: 'error', text: lang === 'RU' ? 'Заполните корректно данные карты' : 'Please enter valid card details' });
+        return;
+      }
     }
 
     try {
@@ -66,19 +149,31 @@ export default function RoomDetailPage({ t, currency, lang }) {
         checkIn,
         checkOut,
         totalPrice: calculateTotal(),
-        payNow: payNow 
+        payNow: payNow,
+        guestsCount: guestsCount
       });
 
       if (response.data.success) {
-        setBookingAlert({ type: 'success', text: response.data.message });
+        if (payNow) {
+          setPaymentAlert({ type: 'success', text: response.data.message });
+        } else {
+          setBookingAlert({ type: 'success', text: response.data.message });
+        }
+
         setTimeout(() => {
           setOpenCheckout(false);
+          setOpenPaymentModal(false);
           navigate('/profile'); 
           window.location.reload();
         }, 2000);
       }
     } catch (error) {
-      setBookingAlert({ type: 'error', text: error.response?.data?.error || 'Ошибка при создании бронирования.' });
+      const errorText = error.response?.data?.error || 'Ошибка при создании бронирования.';
+      if (payNow) {
+        setPaymentAlert({ type: 'error', text: errorText });
+      } else {
+        setBookingAlert({ type: 'error', text: errorText });
+      }
     }
   };
 
@@ -113,7 +208,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Typography>
               <Divider sx={{ my: 3 }} />
               <Typography variant="body1" sx={{ color: 'text.primary' }}>
-                <b>{t.capacity}:</b> {details.capacity}
+                <b>{t.capacity}:</b> {getCustomCapacityString()}
               </Typography>
             </Paper>
 
@@ -150,7 +245,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
         </Box>
       </Container>
 
-      {/* Модальное окно */}
+      {/*  оформления брони (модальное окно) */}
       <Dialog 
         open={openCheckout} 
         onClose={() => setOpenCheckout(false)}
@@ -172,15 +267,49 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
-            {/* Выбор дат заезда/выезда */}
+            {/* Выбор дат заезда/выезда с блокировкой прошедших дат */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>ДАТА ЗАЕЗДА</Typography>
-              <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} />
+              <input 
+                type="date" 
+                min={todayStr} 
+                value={checkIn} 
+                onChange={(e) => {
+                  setCheckIn(e.target.value);
+                  if (checkOut && e.target.value >= checkOut) {
+                    setCheckOut('');
+                  }
+                }} 
+                style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
+              />
             </Box>
 
-            <Box sx={{ mb: 2 }}>
+            <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>ДАТА ВЫЕЗДА</Typography>
-              <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} />
+              <input 
+                type="date" 
+                min={checkIn || todayStr} 
+                value={checkOut} 
+                onChange={(e) => setCheckOut(e.target.value)} 
+                style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
+              />
+            </Box>
+
+            {/* Выбор количества человек */}
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>КОЛИЧЕСТВО ГОСТЕЙ</Typography>
+              <Select 
+                fullWidth 
+                value={guestsCount} 
+                onChange={(e) => setGuestsCount(e.target.value)} 
+                sx={{ borderRadius: 0 }}
+              >
+                {Array.from({ length: maxGuests }, (_, i) => i + 1).map(num => (
+                  <MenuItem key={num} value={num}>
+                    {num} {num === 1 ? (lang === 'RU' ? 'человек' : 'person') : (lang === 'RU' ? 'человека' : 'people')}
+                  </MenuItem>
+                ))}
+              </Select>
             </Box>
 
             <Divider />
@@ -190,7 +319,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
             </Typography>
 
             {/* Способы оплаты */}
-            <Paper sx={{ p: 3, borderRadius: 0, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', '&:hover': { borderColor: '#c1a37f' } }} onClick={() => handleConfirmBooking(true)}>
+            <Paper sx={{ p: 3, borderRadius: 0, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', '&:hover': { borderColor: '#c1a37f' } }} onClick={handlePayNowClick}>
               <Stack direction="row" spacing={2} alignItems="center">
                 <AccountBalanceWalletIcon sx={{ color: 'secondary.main', fontSize: 30 }} />
                 <Box>
@@ -218,6 +347,80 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Stack>
             </Paper>
 
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/*  Оплата картой при бронировании (Модальное окно) */}
+      <Dialog 
+        open={openPaymentModal} 
+        onClose={() => setOpenPaymentModal(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
+        }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
+          {lang === 'RU' ? 'Оплата картой' : 'Card Payment'}
+        </DialogTitle>
+        <DialogContent>
+          {paymentAlert && (
+            <Alert severity={paymentAlert.type} sx={{ borderRadius: 0, mb: 3 }}>
+              {paymentAlert.text}
+            </Alert>
+          )}
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            
+            <Typography variant="h6" align="center" color="secondary" sx={{ fontWeight: 'bold' }}>
+              {lang === 'RU' ? 'К оплате:' : 'To Pay:'} {formatPrice(calculateTotal(), currency, lang)}
+            </Typography>
+
+            {cards.length > 0 ? (
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                  {lang === 'RU' ? 'СПОСОБ ОПЛАТЫ' : 'PAYMENT METHOD'}
+                </Typography>
+                <Select fullWidth value={useLinkedCard} onChange={(e) => setUseLinkedCard(e.target.value)} sx={{ borderRadius: 0 }}>
+                  <MenuItem value={true}>{lang === 'RU' ? `Привязанная карта (•••• ${cards[0].lastFour})` : `Linked Card (•••• ${cards[0].lastFour})`}</MenuItem>
+                  <MenuItem value={false}>{lang === 'RU' ? 'Использовать другую карту' : 'Use another card'}</MenuItem>
+                </Select>
+              </Box>
+            ) : null}
+
+            {!useLinkedCard ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                    {lang === 'RU' ? 'НОМЕР КАРТЫ' : 'CARD NUMBER'}
+                  </Typography>
+                  <TextField required fullWidth placeholder="16 digits" value={newCardNumber} onChange={(e) => setNewCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                    {lang === 'RU' ? 'СРОК ДЕЙСТВИЯ' : 'EXPIRATION DATE'}
+                  </Typography>
+                  <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={(e) => setNewExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
+                </Box>
+              </Box>
+            ) : null}
+
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                CVC/CVV
+              </Typography>
+              <TextField required fullWidth type="password" placeholder="***" value={cvc} onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))} sx={inputStyle} />
+            </Box>
+
+            <Button 
+              variant="contained" 
+              fullWidth 
+              onClick={() => handleConfirmBooking(true)}
+              sx={{ bgcolor: '#c1a37f', color: 'white', py: 1.8, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: '#a68a64' } }}
+            >
+              {lang === 'RU' ? 'ПОДТВЕРДИТЬ И ОПЛАТИТЬ' : 'CONFIRM & PAY'}
+            </Button>
           </Box>
         </DialogContent>
       </Dialog>
