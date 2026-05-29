@@ -8,7 +8,7 @@ const axios = require('axios');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
-const crypto = require('crypto'); 
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -21,6 +21,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// мидлавры безопастности 
 const authenticateToken = (req, res, next) => {
   const token = req.cookies.deepblue_session || req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Неавторизован' });
@@ -43,7 +44,7 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-// --- НАСТРОЙКИ SWAGGER (OPENAPI 3.0) ---
+// настройки swagger (OPENAPI 3.0) 
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
@@ -72,6 +73,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+// валидаторы
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone) => /^\+?[1-9]\d{1,14}$/.test(phone) && phone.length >= 10;
 
@@ -113,7 +115,9 @@ async function seedAdditionalServices() {
 }
 
 
-// РАЗДЕЛ 1: авторизация + регистрация
+// ==========================================
+// РАЗДЕЛ 1: авторизация и регистрация (AUTH)
+// ==========================================
 
 /**
  * @openapi
@@ -302,7 +306,9 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 
-// РАЗДЕЛ 2:  GOOGLE OAUTH
+// ========================================================
+// РАЗДЕЛ 2: связка и отвязка GOOGLE OAUTH
+// ========================================================
 
 /**
  * @openapi
@@ -429,7 +435,10 @@ app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
   }
 });
 
-// РАЗДЕЛ 3: платежи
+
+// ========================================================
+// РАЗДЕЛ 3: карты и платежи (PAYMENTS)
+// ========================================================
 
 /**
  * @openapi
@@ -614,7 +623,9 @@ app.post('/api/auth/bookings/pay-debt', authenticateToken, async (req, res) => {
 });
 
 
-// РАЗДЕЛ 4: активные услуги
+// ========================================================
+// РАЗДЕЛ 4: активные услуги(GUEST & EMPLOYEE)
+// ========================================================
 
 /**
  * @openapi
@@ -671,7 +682,7 @@ app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
  * /api/auth/employee/tasks:
  *   get:
  *     tags: [Employee Services]
- *     summary: Получение списка задач сотрудника (Включая нераспределенные)
+ *     summary: Получение списка задач сотрудника
  *     security:
  *       - bearerAuth: []
  */
@@ -758,7 +769,7 @@ app.put('/api/auth/employee/tasks/:id/status', authenticateToken, requireRole(['
  * /api/auth/massage/book:
  *   post:
  *     tags: [Guest Services]
- *     summary: Запись на сеанс массажа с проверкой доступности мастера (ТЗ)
+ *     summary: Запись на сеанс массажа с проверкой доступности мастера и блокировкой прошедших дат
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -777,6 +788,18 @@ app.post('/api/auth/massage/book', authenticateToken, requireRole(['Guest', 'Emp
   const { specialistId, date, time } = req.body;
 
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedBookingDate = new Date(date);
+    if (isNaN(selectedBookingDate.getTime())) {
+      return res.status(400).json({ error: 'Указана некорректная или невалидная дата.' });
+    }
+
+    if (selectedBookingDate < today) {
+      return res.status(400).json({ error: 'Вы не можете записаться на массаж на прошедшую дату.' });
+    }
+
     const existingBooking = await prisma.massageBookings.findFirst({
       where: {
         specialist_id: parseInt(specialistId),
@@ -923,7 +946,10 @@ app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee',
 });
 
 
-// РАЗДЕЛ 5: администрирование
+// ========================================================
+// РАЗДЕЛ 5: администрирование (ADMIN & CRUD)
+// ========================================================
+
 /**
  * @openapi
  * /api/auth/admin/users:
@@ -1081,12 +1107,16 @@ app.post('/api/auth/admin/tasks/assign', authenticateToken, requireRole(['Admin'
 });
 
 
+// ========================================================
+// РАЗДЕЛ 6: допольнительные услуги (SERVICES)
+// ========================================================
+
 /**
  * @openapi
  * /api/auth/services/purchase:
  *   post:
  *     tags: [Payments]
- *     summary: Покупка дополнительной услуги в счет проживания (Guest/Employee/Admin) с проверкой ограничений
+ *     summary: Покупка дополнительной услуги в счет проживания (Guest/Employee/Admin) с жесткой блокировкой повторных покупок
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -1114,7 +1144,6 @@ app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest',
     const service = await prisma.additionalServices.findUnique({ where: { name: normalizedServiceName } });
     if (!service) return res.status(404).json({ error: `Услуга "${serviceName}" не найдена в базе данных.` });
 
-    // 1. Находим активное бронирование пользователя
     const activeBooking = await prisma.bookings.findFirst({
       where: { user_id: req.user.userId, booking_status: 'Confirmed' },
       orderBy: { created_at: 'desc' }
@@ -1135,64 +1164,74 @@ app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest',
 
     const roomCategory = room.category ? room.category.trim().toLowerCase() : 'none';
 
-    // 3. Проверка ограничений по типам услуг
+    const stayNights = Math.ceil((new Date(activeBooking.check_out) - new Date(activeBooking.check_in)) / (1000 * 60 * 60 * 24)) || 1;
 
-    if (normalizedServiceName === 'breakfast') {
-      if (['business', 'lux', 'penthouse'].includes(roomCategory)) {
-        return res.status(400).json({ error: 'Завтрак уже включен в стоимость вашего номера по тарифу.' });
-      }
-    }
-
-    if (normalizedServiceName === 'lunch') {
-      if (['lux', 'penthouse'].includes(roomCategory)) {
-        return res.status(400).json({ error: 'Обед уже включен в стоимость вашего номера по тарифу.' });
-      }
-    }
-
-    if (normalizedServiceName === 'dinner') {
-      if (['lux', 'penthouse'].includes(roomCategory)) {
-        return res.status(400).json({ error: 'Ужин уже включен в стоимость вашего номера по тарифу.' });
-      }
-    }
-
-    // Б. Спа и Бани (saunas) — макс. 1 раз, если не включено в тариф
-    if (normalizedServiceName === 'saunas' || normalizedServiceName === 'sauna') {
-      if (['standard', 'business', 'lux', 'penthouse'].includes(roomCategory)) {
-        return res.status(400).json({ error: 'Доступ в SPA и термальные зоны уже включен в стоимость вашего номера.' });
-      }
-
-      const existingSaunasPurchase = await prisma.userServices.findFirst({
-        where: { user_id: req.user.userId, service_id: service.id }
-      });
-      if (existingSaunasPurchase || qty > 1) {
-        return res.status(400).json({ error: 'Доступ в SPA можно приобрести только один раз.' });
-      }
-    }
-
-    // В. Парковочные места 
-    if (normalizedServiceName === 'parking') {
-      const existingParkingPurchases = await prisma.userServices.findMany({
-        where: { user_id: req.user.userId, service_id: service.id }
-      });
-      const totalParkingQty = existingParkingPurchases.reduce((acc, curr) => acc + curr.quantity, 0);
-
-      let maxParking = 3;
-      if (roomCategory === 'penthouse') {
-        maxParking = 2;
-      }
-
-      if (totalParkingQty + qty > maxParking) {
-        return res.status(400).json({ 
-          error: roomCategory === 'penthouse'
-            ? `Для Пентхауса уже включено 1 VIP-место. Вы можете докупить не более 2 дополнительных мест. У вас уже приобретено: ${totalParkingQty}.`
-            : `Превышен лимит парковочных мест. Максимум 3 места на один номер. У вас уже приобретено: ${totalParkingQty}.`
+    // 3. блокировка повторных покупок
+    if (normalizedServiceName !== 'massage' && normalizedServiceName !== 'cyber') {
+      
+      if (normalizedServiceName !== 'parking') {
+        const alreadyPurchased = await prisma.userServices.findFirst({
+          where: { user_id: req.user.userId, service_id: service.id }
         });
+        if (alreadyPurchased) {
+          return res.status(400).json({ 
+            error: `Вы уже приобрели услугу "${service.name.toUpperCase()}". Повторная покупка недоступна.` 
+          });
+        }
+      }
+
+      // А. Проверка питания
+      if (normalizedServiceName === 'breakfast') {
+        if (['business', 'lux', 'penthouse'].includes(roomCategory)) {
+          return res.status(400).json({ error: 'Завтрак уже включен в стоимость вашего номера по тарифу.' });
+        }
+      }
+
+      if (normalizedServiceName === 'lunch') {
+        if (['lux', 'penthouse'].includes(roomCategory)) {
+          return res.status(400).json({ error: 'Обед уже включен в стоимость вашего номера по тарифу.' });
+        }
+      }
+
+      if (normalizedServiceName === 'dinner') {
+        if (['lux', 'penthouse'].includes(roomCategory)) {
+          return res.status(400).json({ error: 'Ужин уже включен в стоимость вашего номера по тарифу.' });
+        }
+      }
+
+      // Б. Проверка Спа и Бань
+      if (normalizedServiceName === 'saunas' || normalizedServiceName === 'sauna') {
+        if (['standard', 'business', 'lux', 'penthouse'].includes(roomCategory)) {
+          return res.status(400).json({ error: 'Доступ в SPA и термальные зоны уже включен в стоимость вашего номера.' });
+        }
+      }
+
+      // В. Проверка и лимиты парковки
+      if (normalizedServiceName === 'parking') {
+        if (roomCategory === 'penthouse') {
+          return res.status(400).json({ error: 'VIP-парковка уже включена в стоимость вашего Пентхауса.' });
+        }
+
+        const existingParkingPurchases = await prisma.userServices.findMany({
+          where: { user_id: req.user.userId, service_id: service.id }
+        });
+        const totalParkingQty = existingParkingPurchases.reduce((acc, curr) => acc + curr.quantity, 0);
+
+        if (totalParkingQty + qty > 3) {
+          return res.status(400).json({ 
+            error: `Превышен лимит парковочных мест. Вы можете забронировать максимум 3 места. У вас уже забронировано: ${totalParkingQty} из 3.` 
+          });
+        }
       }
     }
 
     // 4. Списание средств и проведение транзакции
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
-    const cost = parseFloat(service.price) * qty;
+    
+    let cost = parseFloat(service.price) * qty;
+    if (normalizedServiceName === 'parking') {
+      cost = parseFloat(service.price) * qty * stayNights;
+    }
 
     if (parseFloat(user.balance) < cost) {
       return res.status(400).json({ error: 'Недостаточно средств на балансе для покупки услуги' });
@@ -1217,7 +1256,9 @@ app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest',
           user_id: req.user.userId, 
           type: 'SERVICE', 
           amount: cost, 
-          description: `Покупка услуги: ${serviceName.toUpperCase()} (x${qty})` 
+          description: normalizedServiceName === 'parking'
+            ? `Покупка услуги: PARKING (x${qty}) на ${stayNights} сут.`
+            : `Покупка услуги: ${serviceName.toUpperCase()} (x${qty})` 
         } 
       })
     ]);
