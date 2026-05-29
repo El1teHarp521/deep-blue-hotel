@@ -122,6 +122,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const adminTasksRes = await axios.get('http://localhost:3003/api/auth/admin/tasks');
         setAdminTasks(adminTasksRes.data);
 
+        // Загрузка комнат  и всех бронирований для админа
         const roomsRes = await axios.get('http://localhost:3001/api/rooms');
         setAdminRooms(roomsRes.data);
 
@@ -138,6 +139,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const employeeTasksRes = await axios.get('http://localhost:3003/api/auth/employee/tasks');
         setEmployeeTasks(employeeTasksRes.data);
 
+        // Получение реального списка постояльцев с сервера
         const guestsRes = await axios.get('http://localhost:3003/api/auth/employee/guests');
         setGuestsLog(guestsRes.data);
       }
@@ -319,6 +321,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     }
   };
 
+  // пдмин функционал
   const handleUpdateRoomPrice = async (roomId, currentPrice) => {
     const newPrice = prompt(lang === 'RU' ? 'Введите новую цену номера (₽):' : 'Enter new price for the room:', currentPrice);
     if (newPrice === null || isNaN(parseFloat(newPrice))) return;
@@ -365,6 +368,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     }
   };
 
+  // Вычисление динамического статуса номера (Свободен / Занят / Обслуживание)
   const getRoomStatusLabel = (room) => {
     if (room.status === 'Maintenance') {
       return lang === 'RU' ? 'Обслуживание' : 'Maintenance';
@@ -379,6 +383,18 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     if (room.status === 'Maintenance') return 'warning';
     if (room.isOccupied) return 'error';
     return 'success';
+  };
+
+  const calculateTotalRevenue = () => {
+    return adminBookings
+      .filter(b => b.payment_status === 'Paid' && b.booking_status !== 'Cancelled')
+      .reduce((acc, curr) => acc + parseFloat(curr.price || 0), 0);
+  };
+
+  const calculateOccupancyRate = () => {
+    if (adminRooms.length === 0) return 0;
+    const occupied = adminRooms.filter(r => r.isOccupied).length;
+    return Math.round((occupied / adminRooms.length) * 100);
   };
 
   const getGroupedServices = () => {
@@ -474,7 +490,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Tabs>
         </Paper>
 
-        {/* данные профиля */}
+        {/* --- ВКЛАДКА 1: данные профиля --- */}
         {tabValue === 'profile' && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Box component="form" onSubmit={handleSaveProfile}>
@@ -511,7 +527,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* баланс и карты*/}
+        {/* --- ВКЛАДКА 2: баланс и карты --- */}
         {tabValue === 'balance' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' }, gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
@@ -543,7 +559,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* активные услуги */}
+        {/* --- ВКЛАДКА 3: активные услуги --- */}
         {tabValue === 'active' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -557,6 +573,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     {lang === 'RU' ? `Даты: ${new Date(activeBooking.checkIn).toLocaleDateString()} — ${new Date(activeBooking.checkOut).toLocaleDateString()}` : `Dates: ${new Date(activeBooking.checkIn).toLocaleDateString()} — ${new Date(activeBooking.checkOut).toLocaleDateString()}`}
                   </Typography>
+                  
                   <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, mt: 2, alignItems: 'center' }}>
                     <Chip 
                       label={activeBooking.paymentStatus === 'Paid' ? (lang === 'RU' ? 'Оплачен' : 'Paid') : (lang === 'RU' ? 'Задолженность' : 'Debt')} 
@@ -641,7 +658,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* история транзакций */}
+        {/* --- ВКЛАДКА 4: история транзакций --- */}
         {tabValue === 'transactions' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
             <Table>
@@ -667,7 +684,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/* задача сотрудника*/}
+        {/* --- ВКЛАДКА 5: задачи сотрудника --- */}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -700,7 +717,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* учет постояльцев */}
+        {/* --- ВКЛАДКА 6: учет постояльцев --- */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.guestLoggingTitle}</Typography>
@@ -743,9 +760,53 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* админ панель */}
+        {/* --- ВКЛАДКА 7: админ панель --- */}
         {tabValue === 'admin' && user?.role === 'Admin' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
+            {/* Аналитический Дашборд отеля */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
+              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
+                  {lang === 'RU' ? 'ОБЩАЯ ВЫРУЧКА' : 'TOTAL REVENUE'}
+                </Typography>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'secondary.main', fontFamily: 'Playfair Display' }}>
+                  {formatPrice(calculateTotalRevenue(), currency, lang)}
+                </Typography>
+              </Paper>
+
+              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
+                  {lang === 'RU' ? 'ЗАГРУЗКА ОТЕЛЯ' : 'OCCUPANCY RATE'}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+                    {calculateOccupancyRate()}%
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {lang === 'RU' ? `(${adminRooms.filter(r => r.isOccupied).length} из ${adminRooms.length} ном.)` : `(${adminRooms.filter(r => r.isOccupied).length} of ${adminRooms.length} rms)`}
+                  </Typography>
+                </Box>
+              </Paper>
+
+              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
+                  {lang === 'RU' ? 'АКТИВНЫЕ ПОСТОЯЛЬЦЫ' : 'ACTIVE GUESTS'}
+                </Typography>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+                  {adminBookings.filter(b => b.booking_status === 'Confirmed').length}
+                </Typography>
+              </Paper>
+
+              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
+                  {lang === 'RU' ? 'ЗАДАЧИ НА УБОРКУ' : 'PENDING CLEANINGS'}
+                </Typography>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'error.main', fontFamily: 'Playfair Display' }}>
+                  {adminTasks.cleaningRequests ? adminTasks.cleaningRequests.filter(r => r.status === 'Pending').length : 0}
+                </Typography>
+              </Paper>
+            </Box>
+
             {/* Карточка 1: Управление пользователями */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.userManagementTitle}</Typography>
@@ -782,7 +843,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               </TableContainer>
             </Paper>
 
-            {/* Карточка 2: Управление номерным фондом (Цены и статусы) */}
+            {/* Карточка 2: Управление номерным фондом  */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
                 {lang === 'RU' ? 'Управление отелем (Цены и статусы номеров)' : 'Hotel Rooms Management (Prices & Statuses)'}
@@ -923,7 +984,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         )}
       </Container>
 
-      {/* --- пополнение баланса */}
+      {/* мпополнение баланса (модальное окно) */}
       <Dialog 
         open={openRefillModal} 
         onClose={() => setOpenRefillModal(false)}
