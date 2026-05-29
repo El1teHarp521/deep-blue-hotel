@@ -21,16 +21,89 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// мидлавры безопастности 
-const authenticateToken = (req, res, next) => {
-  const token = req.cookies.deepblue_session || req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Неавторизован' });
+
+// ========================================================
+// rate limmiter  (ОГРАНИЧЕНИЕ ЗАПРОСОВ)
+// ========================================================
+const rateLimits = new Map();
+
+const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
+  return (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+
+    if (!rateLimits.has(ip)) {
+      rateLimits.set(ip, []);
+    }
+
+    let timestamps = rateLimits.get(ip);
+    timestamps = timestamps.filter(time => now - time < windowMs);
+
+    if (timestamps.length >= limitCount) {
+      return res.status(429).json({ error: 'Слишком много запросов с вашего IP. Пожалуйста, попробуйте позже.' });
+    }
+
+    timestamps.push(now);
+    rateLimits.set(ip, timestamps);
+    next();
+  };
+};
+
+
+// ========================================================
+//  мидлвары двух токенов
+// ========================================================
+
+const handleRefresh = async (req, res, next, refreshToken) => {
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Сессия истекла. Пожалуйста, авторизуйтесь снова.' });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key');
+    const user = await prisma.users.findUnique({ where: { id: decodedRefresh.userId } });
+
+    if (!user || user.is_blocked) {
+      return res.status(403).json({ error: 'Пользователь не найден или заблокирован.' });
+    }
+
+    //  новый Access-токен на 15 минут
+    const newAccessToken = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '15m' }
+    );
+
+    res.cookie('deepblue_access', newAccessToken, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production', 
+      maxAge: 15 * 60 * 1000, 
+      sameSite: 'lax' 
+    });
+
+    req.user = { userId: user.id, email: user.email, role: user.role };
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Необходима повторная авторизация.' });
+  }
+};
+
+const authenticateToken = (req, res, next) => {
+  const accessToken = req.cookies.deepblue_access || req.headers['authorization']?.split(' ')[1];
+  const refreshToken = req.cookies.deepblue_refresh;
+
+  if (!accessToken) {
+    return handleRefresh(req, res, next, refreshToken);
+  }
+
+  try {
+    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return handleRefresh(req, res, next, refreshToken);
+    }
     return res.status(403).json({ error: 'Сессия недействительна' });
   }
 };
@@ -44,7 +117,7 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-// настройки swagger (OPENAPI 3.0) 
+// настройки swagger  (OPENAPI 3.0) 
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
@@ -77,6 +150,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone) => /^\+?[1-9]\d{1,14}$/.test(phone) && phone.length >= 10;
 
+//маппинг номеров
 const mapCleaningRequest = (req) => {
   const roomMap = {
     '00000000-0000-0000-0000-000000000101': { number: '101', type: 'Стандарт' },
@@ -92,6 +166,7 @@ const mapCleaningRequest = (req) => {
   };
 };
 
+// автоматический сиддинг доп.услуг в базу данных
 async function seedAdditionalServices() {
   try {
     const count = await prisma.additionalServices.count();
@@ -119,33 +194,7 @@ async function seedAdditionalServices() {
 // РАЗДЕЛ 1: авторизация и регистрация (AUTH)
 // ==========================================
 
-/**
- * @openapi
- * /api/auth/register:
- *   post:
- *     tags: [Auth]
- *     summary: Регистрация нового пользователя (роль User по умолчанию)
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, password, firstName, lastName, phone]
- *             properties:
- *               email: { type: string, example: "guest@deepblue.com" }
- *               password: { type: string, example: "123456" }
- *               firstName: { type: string, example: "Иван" }
- *               lastName: { type: string, example: "Иванов" }
- *               phone: { type: string, example: "+79991111112" }
- *               country: { type: string, example: "Россия" }
- *     responses:
- *       201:
- *         description: Пользователь успешно создан и авторизован
- *       400:
- *         description: Ошибка валидации или дубликат Email/Телефона
- */
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { email, password, firstName, lastName, phone, country } = req.body;
 
   if (!validateEmail(email)) return res.status(400).json({ error: 'Неверный формат Email' });
@@ -166,8 +215,12 @@ app.post('/api/auth/register', async (req, res) => {
       data: { email, password_hash: passwordHash, first_name: firstName, last_name: lastName, phone, country, role: 'User' }
     });
 
-    const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('deepblue_session', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    // Генерация двух токенов
+    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key', { expiresIn: '7d' });
+
+    res.cookie('deepblue_access', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000, sameSite: 'lax' });
+    res.cookie('deepblue_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
 
     res.status(201).json({ success: true, user: { id: user.id, email: user.email, fullName: `${user.first_name} ${user.last_name}`, role: user.role } });
   } catch (error) {
@@ -175,29 +228,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/login:
- *   post:
- *     tags: [Auth]
- *     summary: Вход по Email или номеру телефона
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [loginInput, password]
- *             properties:
- *               loginInput: { type: string, example: "guest@deepblue.com" }
- *               password: { type: string, example: "123456" }
- *     responses:
- *       200:
- *         description: Успешный вход
- *       400:
- *         description: Неверные учетные данные
- */
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { loginInput, password } = req.body;
 
   try {
@@ -211,8 +242,12 @@ app.post('/api/auth/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Неверный пароль' });
 
-    const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('deepblue_session', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    // Генерация двух токенов
+    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key', { expiresIn: '7d' });
+
+    res.cookie('deepblue_access', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000, sameSite: 'lax' });
+    res.cookie('deepblue_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
 
     res.json({ success: true, user: { id: user.id, email: user.email, fullName: `${user.first_name} ${user.last_name}`, role: user.role } });
   } catch (error) {
@@ -220,23 +255,9 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/me:
- *   get:
- *     tags: [Auth]
- *     summary: Проверка активной сессии
- *     responses:
- *       200:
- *         description: Профиль пользователя получен
- */
-app.get('/api/auth/me', async (req, res) => {
-  const token = req.cookies.deepblue_session;
-  if (!token) return res.status(401).json({ isAuthenticated: false });
-
+app.get('/api/auth/me', rateLimiter(100, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await prisma.users.findUnique({ where: { id: decoded.userId } });
+    const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
     if (!user) return res.status(404).json({ isAuthenticated: false });
 
     res.json({
@@ -260,26 +281,7 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/profile:
- *   put:
- *     tags: [Auth]
- *     summary: Редактирование информации профиля
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               fullName: { type: string, example: "Петр Петров" }
- *               phone: { type: string, example: "+79993333333" }
- *               country: { type: string, example: "ОАЭ" }
- */
-app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+app.put('/api/auth/profile', rateLimiter(50, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { fullName, phone, country } = req.body;
   const names = fullName ? fullName.split(' ') : [];
   try {
@@ -293,15 +295,9 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/logout:
- *   post:
- *     tags: [Auth]
- *     summary: Выход из аккаунта (Очистка куки сессии)
- */
 app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('deepblue_session');
+  res.clearCookie('deepblue_access');
+  res.clearCookie('deepblue_refresh');
   res.json({ success: true });
 });
 
@@ -310,13 +306,6 @@ app.post('/api/auth/logout', (req, res) => {
 // РАЗДЕЛ 2: связка и отвязка GOOGLE OAUTH
 // ========================================================
 
-/**
- * @openapi
- * /api/auth/google/url:
- *   get:
- *     tags: [Google OAuth]
- *     summary: Получить безопасный URL для авторизации Google
- */
 app.get('/api/auth/google/url', (req, res) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const options = {
@@ -330,16 +319,9 @@ app.get('/api/auth/google/url', (req, res) => {
   res.json({ url: `${rootUrl}?${new URLSearchParams(options).toString()}` });
 });
 
-/**
- * @openapi
- * /api/auth/google/callback:
- *   get:
- *     tags: [Google OAuth]
- *     summary: Callback обработчик Google
- */
 app.get('/api/auth/google/callback', async (req, res) => {
   const { code } = req.query;
-  const tokenFromCookie = req.cookies.deepblue_session;
+  const tokenFromCookie = req.cookies.deepblue_access;
 
   if (!code) return res.status(400).send('Код Google не найден');
 
@@ -405,8 +387,11 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
     if (user.is_blocked) return res.status(403).send('Ваш аккаунт заблокирован');
 
-    const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('deepblue_session', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key', { expiresIn: '7d' });
+
+    res.cookie('deepblue_access', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000, sameSite: 'lax' });
+    res.cookie('deepblue_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
     res.redirect(process.env.FRONTEND_URL);
 
   } catch (error) {
@@ -414,15 +399,6 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/google/unlink:
- *   put:
- *     tags: [Google OAuth]
- *     summary: Отвязать аккаунт Google от текущего профиля
- *     security:
- *       - bearerAuth: []
- */
 app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
   try {
     await prisma.users.update({
@@ -440,26 +416,7 @@ app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
 // РАЗДЕЛ 3: карты и платежи (PAYMENTS)
 // ========================================================
 
-/**
- * @openapi
- * /api/auth/cards:
- *   post:
- *     tags: [Payments]
- *     summary: Безопасное привязывание карты
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [cardNumber, expireDate]
- *             properties:
- *               cardNumber: { type: string, example: "1111222233334444" }
- *               expireDate: { type: string, example: "12/29" }
- */
-app.post('/api/auth/cards', authenticateToken, async (req, res) => {
+app.post('/api/auth/cards', rateLimiter(20, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { cardNumber, expireDate } = req.body;
   if (!cardNumber || cardNumber.length !== 16) return res.status(400).json({ error: 'Неверный номер карты' });
 
@@ -473,15 +430,6 @@ app.post('/api/auth/cards', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/cards:
- *   get:
- *     tags: [Payments]
- *     summary: Получить список всех привязанных карт пользователя
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/cards', authenticateToken, async (req, res) => {
   try {
     const cards = await prisma.linkedCards.findMany({ where: { user_id: req.user.userId } });
@@ -491,20 +439,6 @@ app.get('/api/auth/cards', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/cards/{id}:
- *   delete:
- *     tags: [Payments]
- *     summary: Удалить карту по ID
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- */
 app.delete('/api/auth/cards/:id', authenticateToken, async (req, res) => {
   try {
     await prisma.linkedCards.deleteMany({ where: { id: req.params.id, user_id: req.user.userId } });
@@ -514,29 +448,7 @@ app.delete('/api/auth/cards/:id', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/refill:
- *   post:
- *     tags: [Payments]
- *     summary: Пополнение баланса (C защитой от NaN и поддержкой привязанных карт)
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [amount, cvc]
- *             properties:
- *               amount: { type: number, example: 5000 }
- *               cvc: { type: string, example: "123" }
- *               useLinkedCard: { type: boolean, example: true }
- *               cardNumber: { type: string, example: "1111222233334444" }
- *               expireDate: { type: string, example: "12/29" }
- */
-app.post('/api/auth/refill', authenticateToken, async (req, res) => {
+app.post('/api/auth/refill', rateLimiter(15, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { amount, cvc, useLinkedCard, cardNumber, expireDate } = req.body;
   const parsedAmount = parseFloat(amount);
 
@@ -563,15 +475,6 @@ app.post('/api/auth/refill', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/transactions:
- *   get:
- *     tags: [Payments]
- *     summary: Получить историю транзакций
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/transactions', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.transactions.findMany({ where: { user_id: req.user.userId }, orderBy: { created_at: 'desc' } });
@@ -581,23 +484,14 @@ app.get('/api/auth/transactions', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/bookings/pay-debt:
- *   post:
- *     tags: [Payments]
- *     summary: Погасить задолженность по бронированию
- *     security:
- *       - bearerAuth: []
- */
-app.post('/api/auth/bookings/pay-debt', authenticateToken, async (req, res) => {
+app.post('/api/auth/bookings/pay-debt', rateLimiter(15, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { bookingId, amount } = req.body;
   const price = parseFloat(amount);
 
   try {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
     if (parseFloat(user.balance) < price) {
-      return res.status(400).json({ error: 'Недостаточно средств на балансе. Пожалуйста, пополните счет.' });
+      return res.status(400).json({ error: 'Недостаточно средств на балансе для покупки услуги' });
     }
 
     const newBalance = parseFloat(user.balance) - price;
@@ -624,19 +518,10 @@ app.post('/api/auth/bookings/pay-debt', authenticateToken, async (req, res) => {
 
 
 // ========================================================
-// РАЗДЕЛ 4: активные услуги(GUEST & EMPLOYEE)
+// РАЗДЕЛ 4: активные услуги (GUEST & EMPLOYEE)
 // ========================================================
 
-/**
- * @openapi
- * /api/auth/cleaning/request:
- *   post:
- *     tags: [Guest Services]
- *     summary: Запрос постояльца на уборку в номере (Guest Only)
- *     security:
- *       - bearerAuth: []
- */
-app.post('/api/auth/cleaning/request', authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
+app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
   try {
     const activeBooking = await prisma.bookings.findFirst({
       where: { user_id: req.user.userId, booking_status: 'Confirmed' }
@@ -659,15 +544,6 @@ app.post('/api/auth/cleaning/request', authenticateToken, requireRole(['Guest', 
   }
 });
 
-/**
- * @openapi
- * /api/auth/cleaning/status:
- *   get:
- *     tags: [Guest Services]
- *     summary: Получение статуса уборок постояльца
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.cleaningRequests.findMany({ where: { user_id: req.user.userId }, orderBy: { created_at: 'desc' } });
@@ -677,15 +553,6 @@ app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/employee/tasks:
- *   get:
- *     tags: [Employee Services]
- *     summary: Получение списка задач сотрудника
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   try {
     const schedules = await prisma.employeeSchedules.findMany({
@@ -709,30 +576,7 @@ app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 
   }
 });
 
-/**
- * @openapi
- * /api/auth/employee/tasks/{id}/status:
- *   put:
- *     tags: [Employee Services]
- *     summary: Обновление статуса задачи сотрудником
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               status: { type: string, example: "Completed" }
- *               isCleaningRequest: { type: boolean, example: true }
- */
-app.put('/api/auth/employee/tasks/:id/status', authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
+app.put('/api/auth/employee/tasks/:id/status', rateLimiter(50, 15 * 60 * 1000), authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   const { status, isCleaningRequest } = req.body;
   try {
     if (isCleaningRequest) {
@@ -764,30 +608,11 @@ app.put('/api/auth/employee/tasks/:id/status', authenticateToken, requireRole(['
   }
 });
 
-/**
- * @openapi
- * /api/auth/massage/book:
- *   post:
- *     tags: [Guest Services]
- *     summary: Запись на сеанс массажа с проверкой доступности мастера и блокировкой прошедших дат
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [specialistId, date, time]
- *             properties:
- *               specialistId: { type: number, example: 1 }
- *               date: { type: string, example: "2026-05-20" }
- *               time: { type: string, example: "14:00" }
- */
-app.post('/api/auth/massage/book', authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
+app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { specialistId, date, time } = req.body;
 
   try {
+    // Валидация прошедших дат для массажа
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -851,15 +676,6 @@ app.post('/api/auth/massage/book', authenticateToken, requireRole(['Guest', 'Emp
   }
 });
 
-/**
- * @openapi
- * /api/auth/massage/my:
- *   get:
- *     tags: [Guest Services]
- *     summary: Получение всех записей на массаж постояльца
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.massageBookings.findMany({
@@ -872,15 +688,6 @@ app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/employee/guests:
- *   get:
- *     tags: [Employee Services]
- *     summary: Получение списка реальных постояльцев на основе активных бронирований
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   try {
     const bookings = await prisma.bookings.findMany({
@@ -950,15 +757,6 @@ app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee',
 // РАЗДЕЛ 5: администрирование (ADMIN & CRUD)
 // ========================================================
 
-/**
- * @openapi
- * /api/auth/admin/users:
- *   get:
- *     tags: [Admin]
- *     summary: Получение всех пользователей в системе (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     const users = await prisma.users.findMany();
@@ -968,29 +766,7 @@ app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), asyn
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/users/{id}/role:
- *   put:
- *     tags: [Admin]
- *     summary: Изменение роли (Admin Only)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               role: { type: string, example: "Employee" }
- */
-app.put('/api/auth/admin/users/:id/role', authenticateToken, requireRole(['Admin']), async (req, res) => {
+app.put('/api/auth/admin/users/:id/role', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { role } = req.body;
   try {
     await prisma.users.update({ where: { id: req.params.id }, data: { role } });
@@ -1000,29 +776,7 @@ app.put('/api/auth/admin/users/:id/role', authenticateToken, requireRole(['Admin
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/users/{id}/block:
- *   put:
- *     tags: [Admin]
- *     summary: Блокировка / разблокировка пользователя (Admin Only)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               isBlocked: { type: boolean, example: true }
- */
-app.put('/api/auth/admin/users/:id/block', authenticateToken, requireRole(['Admin']), async (req, res) => {
+app.put('/api/auth/admin/users/:id/block', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { isBlocked } = req.body;
   try {
     await prisma.users.update({ where: { id: req.params.id }, data: { is_blocked: isBlocked } });
@@ -1032,21 +786,7 @@ app.put('/api/auth/admin/users/:id/block', authenticateToken, requireRole(['Admi
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/users/{id}:
- *   delete:
- *     tags: [Admin]
- *     summary: Полное удаление пользователя (Admin Only)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- */
-app.delete('/api/auth/admin/users/:id', authenticateToken, requireRole(['Admin']), async (req, res) => {
+app.delete('/api/auth/admin/users/:id', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     await prisma.users.delete({ where: { id: req.params.id } });
     res.json({ success: true });
@@ -1055,15 +795,6 @@ app.delete('/api/auth/admin/users/:id', authenticateToken, requireRole(['Admin']
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/tasks:
- *   get:
- *     tags: [Admin]
- *     summary: Получение всех запросов на уборку и задач в системе (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/admin/tasks', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     const cleaningRequests = await prisma.cleaningRequests.findMany({ orderBy: { created_at: 'desc' } });
@@ -1074,26 +805,7 @@ app.get('/api/auth/admin/tasks', authenticateToken, requireRole(['Admin']), asyn
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/tasks/assign:
- *   post:
- *     tags: [Admin]
- *     summary: Назначение уборки или задачи конкретному сотруднику (Admin Only)
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [taskId, employeeId]
- *             properties:
- *               taskId: { type: string, example: "uuid" }
- *               employeeId: { type: string, example: "uuid" }
- */
-app.post('/api/auth/admin/tasks/assign', authenticateToken, requireRole(['Admin']), async (req, res) => {
+app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { taskId, employeeId } = req.body;
   try {
     await prisma.cleaningRequests.update({
@@ -1108,29 +820,10 @@ app.post('/api/auth/admin/tasks/assign', authenticateToken, requireRole(['Admin'
 
 
 // ========================================================
-// РАЗДЕЛ 6: допольнительные услуги (SERVICES)
+// РАЗДЕЛ 6: дополнительные услуги (SERVICES)
 // ========================================================
 
-/**
- * @openapi
- * /api/auth/services/purchase:
- *   post:
- *     tags: [Payments]
- *     summary: Покупка дополнительной услуги в счет проживания (Guest/Employee/Admin) с жесткой блокировкой повторных покупок
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [serviceName, quantity]
- *             properties:
- *               serviceName: { type: string, example: "breakfast" }
- *               quantity: { type: number, example: 1 }
- */
-app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
+app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { serviceName, quantity } = req.body;
   const qty = parseInt(quantity) || 1;
 
@@ -1138,12 +831,14 @@ app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest',
     return res.status(400).json({ error: 'Количество должно быть больше нуля.' });
   }
 
+  // Нормализуем имя услуги для гарантированного совпадения
   const normalizedServiceName = serviceName ? serviceName.trim().toLowerCase() : '';
 
   try {
     const service = await prisma.additionalServices.findUnique({ where: { name: normalizedServiceName } });
     if (!service) return res.status(404).json({ error: `Услуга "${serviceName}" не найдена в базе данных.` });
 
+    // 1. Находим активное бронирование пользователя
     const activeBooking = await prisma.bookings.findFirst({
       where: { user_id: req.user.userId, booking_status: 'Confirmed' },
       orderBy: { created_at: 'desc' }
@@ -1269,15 +964,6 @@ app.post('/api/auth/services/purchase', authenticateToken, requireRole(['Guest',
   }
 });
 
-/**
- * @openapi
- * /api/auth/services/my:
- *   get:
- *     tags: [Payments]
- *     summary: Получение всех купленных услуг постояльца
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/services/my', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.userServices.findMany({
