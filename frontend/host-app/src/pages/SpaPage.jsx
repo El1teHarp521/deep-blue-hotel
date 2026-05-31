@@ -10,13 +10,7 @@ import { formatPrice } from '../utils/price';
 export default function SpaPage({ t, currency, lang, user, setUser }) {
   const navigate = useNavigate();
 
-  const [openMassageModal, setOpenMassageModal] = useState(false);
-  const [massageAlert, setMassageAlert] = useState(null);
-  const [massageDate, setMassageDate] = useState('');
-  const [massageTime, setMassageTime] = useState('14:00');
-  const [selectedSpecialist, setSelectedSpecialist] = useState(1);
-
-  // Получение сегодняшней даты
+  // Получение сегодняшней даты в формате
   const getTodayDateString = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -26,6 +20,13 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
   };
 
   const todayStr = getTodayDateString();
+
+  const [openMassageModal, setOpenMassageModal] = useState(false);
+  const [massageAlert, setMassageAlert] = useState(null);
+  
+  const [massageDate, setMassageDate] = useState(todayStr);
+  const [massageTime, setMassageTime] = useState('14:00');
+  const [selectedSpecialist, setSelectedSpecialist] = useState(1);
 
   const handlePurchaseService = async (serviceName) => {
     try {
@@ -43,6 +44,21 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
     }
   };
 
+  // Валидация при выборе даты в календаре
+  const handleDateChange = (e) => {
+    const val = e.target.value;
+    if (val < todayStr) {
+      setMassageAlert({ 
+        type: 'error', 
+        text: lang === 'RU' ? 'Нельзя выбрать прошедшую дату!' : 'Cannot select a past date!' 
+      });
+      setMassageDate(todayStr);
+    } else {
+      setMassageAlert(null);
+      setMassageDate(val);
+    }
+  };
+
   const handleBookMassage = async (e) => {
     e.preventDefault();
     setMassageAlert(null);
@@ -52,9 +68,9 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
       return;
     }
 
+    const selectedDate = new Date(massageDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(massageDate);
 
     if (selectedDate < today) {
       setMassageAlert({ type: 'error', text: lang === 'RU' ? 'Вы не можете записаться на прошедшую дату!' : 'You cannot book a past date!' });
@@ -75,7 +91,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
         setMassageAlert({ type: 'success', text: response.data.message });
         setTimeout(() => {
           setOpenMassageModal(false);
-          setMassageDate('');
+          setMassageDate(todayStr);
         }, 1500);
       }
     } catch (error) {
@@ -215,9 +231,9 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                 <input 
                   type="date" 
                   required
-                  min={todayStr}
+                  min={todayStr} // Блокировка выбора прошедших дней на календаре
                   value={massageDate} 
-                  onChange={(e) => setMassageDate(e.target.value)} 
+                  onChange={handleDateChange}
                   style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
                 />
               </Box>
