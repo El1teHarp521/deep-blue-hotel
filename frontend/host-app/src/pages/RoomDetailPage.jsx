@@ -17,6 +17,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const { roomType } = useParams();
   const navigate = useNavigate();
 
+  // Автоопределение языка
   const isRu = !lang || lang.toUpperCase() === 'RU';
 
   const [openCheckout, setOpenCheckout] = useState(false);
@@ -193,6 +194,16 @@ export default function RoomDetailPage({ t, currency, lang }) {
     }
   };
 
+  const handleNewExpireDateChange = (e) => {
+    const val = e.target.value;
+    const clean = val.replace(/\D/g, ''); 
+    if (clean.length > 2) {
+      setNewExpireDate(`${clean.slice(0, 2)}/${clean.slice(2, 4)}`);
+    } else {
+      setNewExpireDate(clean);
+    }
+  };
+
   return (
     <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
@@ -302,7 +313,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
-            {/* Выбор дат заезда/выезда с блокировкой дат */}
+            {/* Выбор дат заезда/выезда с блокировкой прошедших */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                 {isRu ? 'ДАТА ЗАЕЗДА' : 'CHECK-IN DATE'}
@@ -336,7 +347,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               />
             </Box>
 
-            {/* Выбор количества человек  */}
+            {/* Выбор количества человек */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                 {isRu ? 'КОЛИЧЕСТВО ГОСТЕЙ' : 'NUMBER OF GUESTS'}
@@ -355,7 +366,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Select>
             </Box>
 
-            {/* пользовательское соглашение */}
+            {/* блок пользовательского соглашения */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
               <input 
                 type="checkbox" 
@@ -488,7 +499,8 @@ export default function RoomDetailPage({ t, currency, lang }) {
                   <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                     {isRu ? 'СРОК ДЕЙСТВИЯ' : 'EXPIRATION DATE'}
                   </Typography>
-                  <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={(e) => setNewExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
+                  <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={handleNewExpireDateChange} sx={inputStyle} />
+                
                 </Box>
               </Box>
             ) : null}

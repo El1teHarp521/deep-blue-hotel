@@ -29,7 +29,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const [newExpireDate, setNewExpireDate] = useState('');
 
   // Личные данные и привязанные карты
-  const [profileData, setProfileData] = useState({ firstName: '', lastName: '', phone: '', country: '' });
+  const [profileData, setProfileData] = useState({ firstName: '', lastName: '', phone: '', country: 'Россия' });
   const [cardNumber, setCardNumber] = useState('');
   const [expireDate, setExpireDate] = useState('');
   const [cards, setCards] = useState([]);
@@ -86,7 +86,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           firstName: user.firstName || '',
           lastName: user.lastName || '',
           phone: user.phone || '',
-          country: user.country || ''
+          country: user.country || 'Россия'
         });
         loadUserData();
       }
@@ -122,6 +122,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const adminTasksRes = await axios.get('http://localhost:3003/api/auth/admin/tasks');
         setAdminTasks(adminTasksRes.data);
 
+        // Загрузка комнат и всех бронирований для админа
         const roomsRes = await axios.get('http://localhost:3001/api/rooms');
         setAdminRooms(roomsRes.data);
 
@@ -138,6 +139,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const employeeTasksRes = await axios.get('http://localhost:3003/api/auth/employee/tasks');
         setEmployeeTasks(employeeTasksRes.data);
 
+        // Получение реального списка постояльцев с сервера
         const guestsRes = await axios.get('http://localhost:3003/api/auth/employee/guests');
         setGuestsLog(guestsRes.data);
       }
@@ -318,7 +320,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
       setAlert({ type: 'error', text: 'Error assigning task' });
     }
   };
-
   const handleCancelMassage = async (massageId) => {
     const confirm = window.confirm(lang === 'RU' ? 'Вы действительно хотите отменить запись на массаж? 1 200 ₽ будут возвращены на ваш баланс.' : 'Do you want to cancel this massage session? 1,200 ₽ will be refunded to your balance.');
     if (!confirm) return;
@@ -420,6 +421,24 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     });
     return grouped;
   };
+  const handleExpireDateChange = (e) => {
+    const val = e.target.value;
+    const clean = val.replace(/\D/g, '');
+    if (clean.length > 2) {
+      setExpireDate(`${clean.slice(0, 2)}/${clean.slice(2, 4)}`);
+    } else {
+      setExpireDate(clean);
+    }
+  };
+  const handleNewExpireDateChange = (e) => {
+    const val = e.target.value;
+    const clean = val.replace(/\D/g, '');
+    if (clean.length > 2) {
+      setNewExpireDate(`${clean.slice(0, 2)}/${clean.slice(2, 4)}`);
+    } else {
+      setNewExpireDate(clean);
+    }
+  };
 
   if (!user || loading) {
     return (
@@ -520,7 +539,24 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <TextField fullWidth label={lang === 'RU' ? 'Имя' : 'First Name'} value={profileData.firstName} onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })} sx={inputStyle} />
                 <TextField fullWidth label={lang === 'RU' ? 'Фамилия' : 'Last Name'} value={profileData.lastName} onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })} sx={inputStyle} />
                 <TextField fullWidth label={lang === 'RU' ? 'Телефон' : 'Phone'} value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} sx={inputStyle} />
-                <TextField fullWidth label={lang === 'RU' ? 'Страна проживания' : 'Country'} value={profileData.country} onChange={(e) => setProfileData({ ...profileData, country: e.target.value })} sx={inputStyle} />
+                
+                {/* выбор страны из выпадающего списка */}
+                <TextField 
+                  select
+                  fullWidth 
+                  label={lang === 'RU' ? 'Страна проживания' : 'Country'} 
+                  value={profileData.country} 
+                  onChange={(e) => setProfileData({ ...profileData, country: e.target.value })} 
+                  sx={inputStyle}
+                >
+                  <MenuItem value="Россия">{lang === 'RU' ? 'Россия' : 'Russia'}</MenuItem>
+                  <MenuItem value="Беларусь">{lang === 'RU' ? 'Беларусь' : 'Belarus'}</MenuItem>
+                  <MenuItem value="Казахстан">{lang === 'RU' ? 'Казахстан' : 'Kazakhstan'}</MenuItem>
+                  <MenuItem value="ОАЭ">{lang === 'RU' ? 'ОАЭ' : 'UAE'}</MenuItem>
+                  <MenuItem value="Турция">{lang === 'RU' ? 'Турция' : 'Turkey'}</MenuItem>
+                  <MenuItem value="Китай">{lang === 'RU' ? 'Китай' : 'China'}</MenuItem>
+                  <MenuItem value="Другая">{lang === 'RU' ? 'Другая страна' : 'Other Country'}</MenuItem>
+                </TextField>
               </Box>
 
               <Box sx={{ p: 3, mb: 4, bgcolor: 'background.default', border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -572,7 +608,8 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
               {cards.length === 0 && (
                 <Box component="form" onSubmit={handleAddCard} sx={{ mt: 2, display: 'grid', gap: 3 }}>
                   <TextField fullWidth label={lang === 'RU' ? 'Номер карты (16 цифр)' : 'Card Number (16 digits)'} value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
-                  <TextField fullWidth placeholder="MM/YY" value={expireDate} onChange={(e) => setExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
+                  <TextField fullWidth placeholder="MM/YY" value={expireDate} onChange={handleExpireDateChange} sx={inputStyle} />
+                  
                   <Button type="submit" variant="outlined" sx={{ width: '100%', borderRadius: 0 }}>{t.cardAddBtn}</Button>
                 </Box>
               )}
@@ -688,7 +725,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* ВКЛАДКА 4: история транзакций  */}
+        {/*  ВКЛАДКА 4: история транзакций  */}
         {tabValue === 'transactions' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
             <Table>
@@ -714,7 +751,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/*  ВКЛАДКА 5: задачи сотрудника  */}
+        {/*  ВКЛАДКА 5: задачи сотрудника */}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -1117,7 +1154,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                     <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                       {lang === 'RU' ? 'СРОК ДЕЙСТВИЯ' : 'EXPIRATION DATE'}
                     </Typography>
-                    <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={(e) => setNewExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
+                    <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={handleNewExpireDateChange} sx={inputStyle} />
                   </Box>
                 </Box>
               ) : null}
