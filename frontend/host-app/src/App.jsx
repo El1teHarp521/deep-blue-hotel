@@ -22,6 +22,7 @@ import EntertainmentPage from './pages/EntertainmentPage';
 import SpaPage from './pages/SpaPage';
 import ParkingPage from './pages/ParkingPage';
 import ProfilePage from './pages/ProfilePage';
+import TermsPage from './pages/TermsPage';
 import AuthModal from './components/AuthModal';
 
 const Footer = ({ t }) => (
@@ -207,6 +208,7 @@ function App() {
           <Route path="/spa" element={<SpaPage t={t} currency={currency} lang={lang} user={user} />} />
           <Route path="/parking" element={<ParkingPage t={t} currency={currency} lang={lang} user={user} />} />
           <Route path="/profile" element={<ProfilePage t={t} currency={currency} lang={lang} user={user} setUser={setUser} />} />
+          <Route path="/terms" element={<TermsPage t={t} lang={lang} />} />
         </Routes>
       </Box>
       <AuthModal open={openAuth} onClose={() => setOpenAuth(false)} t={t} />

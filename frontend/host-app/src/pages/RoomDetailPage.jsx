@@ -26,6 +26,10 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const [checkOut, setCheckOut] = useState('');
   const [guestsCount, setGuestsCount] = useState(1);
 
+  // Стейт для принятия пользовательского соглашения
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // Стейты для карт оплаты
   const [cards, setCards] = useState([]);
   const [useLinkedCard, setUseLinkedCard] = useState(false);
   const [newCardNumber, setNewCardNumber] = useState('');
@@ -48,7 +52,6 @@ export default function RoomDetailPage({ t, currency, lang }) {
     '& .MuiOutlinedInput-root': { borderRadius: 0 }
   };
 
-  // Получение сегодняшней даты 
   const getTodayDateString = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -59,7 +62,6 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
   const todayStr = getTodayDateString();
 
-  //  лимиты по гостям
   const maxGuestsMap = {
     standard: 3,
     business: 5,
@@ -78,7 +80,6 @@ export default function RoomDetailPage({ t, currency, lang }) {
     return capacities[roomType] || details.capacity;
   };
 
-  // Загрузка привязанных карт
   useEffect(() => {
     if (openCheckout) {
       axios.get('http://localhost:3003/api/auth/cards')
@@ -107,9 +108,13 @@ export default function RoomDetailPage({ t, currency, lang }) {
     return details.priceRub * nights;
   };
 
-  // оплатить сейчас
   const handlePayNowClick = () => {
     setBookingAlert(null);
+
+    if (!termsAccepted) {
+      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, примите пользовательское соглашение!' : 'Please accept the User Agreement!' });
+      return;
+    }
 
     if (!checkIn || !checkOut) {
       setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, заполните даты заезда и выезда!' : 'Please fill in check-in and check-out dates!' });
@@ -125,6 +130,17 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
     setOpenCheckout(false);
     setOpenPaymentModal(true);
+  };
+
+  const handlePayLaterClick = () => {
+    setBookingAlert(null);
+
+    if (!termsAccepted) {
+      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, примите пользовательское соглашение!' : 'Please accept the User Agreement!' });
+      return;
+    }
+
+    handleConfirmBooking(false);
   };
 
   const handleConfirmBooking = async (payNow) => {
@@ -245,7 +261,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
         </Box>
       </Container>
 
-      {/*  оформления брони (модальное окно) */}
+      {/* Модальное окно оформления брони */}
       <Dialog 
         open={openCheckout} 
         onClose={() => setOpenCheckout(false)}
@@ -267,7 +283,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
-            {/* Выбор дат заезда/выезда с блокировкой прошедших дат */}
+            {/* Выбор дат заезда/выезда  */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>ДАТА ЗАЕЗДА</Typography>
               <input 
@@ -295,7 +311,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               />
             </Box>
 
-            {/* Выбор количества человек */}
+            {/* Выбор количества человек  */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>КОЛИЧЕСТВО ГОСТЕЙ</Typography>
               <Select 
@@ -312,6 +328,29 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Select>
             </Box>
 
+            {/* пользовательское соглашение */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
+              <input 
+                type="checkbox" 
+                id="terms-checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', lineHeight: 1.4 }}>
+                {lang === 'RU' ? 'Я согласен с ' : 'I agree to the '}
+                <span 
+                  onClick={() => {
+                    setOpenCheckout(false);
+                    navigate('/terms');
+                  }} 
+                  style={{ color: '#c1a37f', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  {lang === 'RU' ? 'пользовательским соглашением' : 'User Agreement'}
+                </span>
+              </Typography>
+            </Box>
+
             <Divider />
 
             <Typography variant="h5" align="center" color="secondary" sx={{ fontWeight: 'bold', my: 1 }}>
@@ -319,7 +358,17 @@ export default function RoomDetailPage({ t, currency, lang }) {
             </Typography>
 
             {/* Способы оплаты */}
-            <Paper sx={{ p: 3, borderRadius: 0, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', '&:hover': { borderColor: '#c1a37f' } }} onClick={handlePayNowClick}>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                borderRadius: 0, 
+                cursor: termsAccepted ? 'pointer' : 'not-allowed', 
+                opacity: termsAccepted ? 1 : 0.5,
+                border: '1px solid rgba(128,128,128,0.2)', 
+                '&:hover': { borderColor: termsAccepted ? '#c1a37f' : 'rgba(128,128,128,0.2)' } 
+              }} 
+              onClick={handlePayNowClick}
+            >
               <Stack direction="row" spacing={2} alignItems="center">
                 <AccountBalanceWalletIcon sx={{ color: 'secondary.main', fontSize: 30 }} />
                 <Box>
@@ -333,7 +382,17 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Stack>
             </Paper>
 
-            <Paper sx={{ p: 3, borderRadius: 0, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', '&:hover': { borderColor: '#c1a37f' } }} onClick={() => handleConfirmBooking(false)}>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                borderRadius: 0, 
+                cursor: termsAccepted ? 'pointer' : 'not-allowed', 
+                opacity: termsAccepted ? 1 : 0.5,
+                border: '1px solid rgba(128,128,128,0.2)', 
+                '&:hover': { borderColor: termsAccepted ? '#c1a37f' : 'rgba(128,128,128,0.2)' } 
+              }} 
+              onClick={handlePayLaterClick}
+            >
               <Stack direction="row" spacing={2} alignItems="center">
                 <CreditCardIcon sx={{ color: '#c1a37f', fontSize: 30 }} />
                 <Box>
@@ -351,7 +410,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
         </DialogContent>
       </Dialog>
 
-      {/*  Оплата картой при бронировании (Модальное окно) */}
+      {/* Второе модальное окно: Оплата картой при бронировании */}
       <Dialog 
         open={openPaymentModal} 
         onClose={() => setOpenPaymentModal(false)}
