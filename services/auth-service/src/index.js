@@ -21,8 +21,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-
-// рейт лиммитер (ограничение запросов) 
+//  рейт лимммитер (ограничение запросов)
 const rateLimits = new Map();
 
 const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
@@ -65,7 +64,7 @@ const handleRefresh = async (req, res, next, refreshToken) => {
 
     // Выписываем новый Access-токен на 15 минут
     const newAccessToken = jwt.sign(
-      { userId: user.id, email: user.role, role: user.role }, 
+      { userId: user.id, email: user.email, role: user.role }, 
       process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', 
       { expiresIn: '15m' }
     );
@@ -113,15 +112,15 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-// настройки swagger (OPENAPI 3.0)
+//  настройки swagger (openapi 3.0) 
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
     info: {
-      title: 'DeepBlue Ultimate API Document',
+      title: 'DeepBlue Auth Service API',
       version: '1.0.0',
-      description: 'Документация всех эндпоинтов системы DeepBlue: авторизация, профиль, платежи, админ-панель, задачи и уборка',
-      contact: { name: 'Lead Architect DeepBlue' }
+      description: 'Документация всех эндпоинтов авторизации, профилей, платежей, задач и услуг в системе DeepBlue',
+      contact: { name: 'DeepBlue Development Team' }
     },
     servers: [{ url: 'http://localhost:3003' }],
     components: {
@@ -130,7 +129,7 @@ const swaggerOptions = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Введите ваш JWT-токен сессии для авторизации protected routes'
+          description: 'Введите ваш JWT-токен для авторизации роутов'
         }
       }
     }
@@ -146,6 +145,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone) => /^\+?[1-9]\d{1,14}$/.test(phone) && phone.length >= 10;
 
+//   маппинг номеров и классов
 const mapCleaningRequest = (req) => {
   const roomMap = {
     '00000000-0000-0000-0000-000000000101': { number: '101', type: 'Стандарт' },
@@ -161,6 +161,7 @@ const mapCleaningRequest = (req) => {
   };
 };
 
+// автоматический сиддинг доп.услуг в бд
 async function seedAdditionalServices() {
   try {
     const count = await prisma.additionalServices.count();
@@ -186,6 +187,32 @@ async function seedAdditionalServices() {
 
 // авторизация и регистрация
 
+/**
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Регистрация нового пользователя
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, firstName, lastName, phone]
+ *             properties:
+ *               email: { type: string, example: "guest@deepblue.com" }
+ *               password: { type: string, example: "123456" }
+ *               firstName: { type: string, example: "Иван" }
+ *               lastName: { type: string, example: "Иванов" }
+ *               phone: { type: string, example: "+79991111112" }
+ *               country: { type: string, example: "Россия" }
+ *     responses:
+ *       201:
+ *         description: Пользователь успешно зарегистрирован
+ *       400:
+ *         description: Некорректные входные данные
+ */
 app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { email, password, firstName, lastName, phone, country } = req.body;
 
@@ -207,7 +234,6 @@ app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res)
       data: { email, password_hash: passwordHash, first_name: firstName, last_name: lastName, phone, country, role: 'User' }
     });
 
-    //  двух токенов
     const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
     const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
@@ -220,6 +246,28 @@ app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res)
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Вход в учетную запись
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [loginInput, password]
+ *             properties:
+ *               loginInput: { type: string, example: "guest@deepblue.com" }
+ *               password: { type: string, example: "123456" }
+ *     responses:
+ *       200:
+ *         description: Авторизация прошла успешно
+ *       400:
+ *         description: Неверный логин или пароль
+ */
 app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { loginInput, password } = req.body;
 
@@ -234,7 +282,6 @@ app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) =>
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Неверный пароль' });
 
-    //  двух токенов
     const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
     const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
@@ -247,6 +294,16 @@ app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) =>
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Получить информацию о текущем пользователе (Проверка сессии)
+ *     responses:
+ *       200:
+ *         description: Информация успешно получена
+ */
 app.get('/api/auth/me', rateLimiter(100, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   try {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
@@ -273,6 +330,28 @@ app.get('/api/auth/me', rateLimiter(100, 15 * 60 * 1000), authenticateToken, asy
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/profile:
+ *   put:
+ *     tags: [Auth]
+ *     summary: Редактировать данные личного профиля
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName: { type: string, example: "Иван Иванов" }
+ *               phone: { type: string, example: "+79991111112" }
+ *               country: { type: string, example: "Казахстан" }
+ *     responses:
+ *       200:
+ *         description: Профиль успешно обновлен
+ */
 app.put('/api/auth/profile', rateLimiter(50, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { fullName, phone, country } = req.body;
   const names = fullName ? fullName.split(' ') : [];
@@ -287,6 +366,16 @@ app.put('/api/auth/profile', rateLimiter(50, 15 * 60 * 1000), authenticateToken,
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Выйти из аккаунта (Очистить сессию)
+ *     responses:
+ *       200:
+ *         description: Куки успешно очищены
+ */
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('deepblue_access');
   res.clearCookie('deepblue_refresh');
@@ -295,7 +384,6 @@ app.post('/api/auth/logout', (req, res) => {
 
 
 // связка и отвязка GOOGLE OAUTH
-
 
 app.get('/api/auth/google/url', (req, res) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -402,9 +490,27 @@ app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
   }
 });
 
-
 // карты и платежи
 
+/**
+ * @openapi
+ * /api/auth/cards:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Привязать новую банковскую карту
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [cardNumber, expireDate]
+ *             properties:
+ *               cardNumber: { type: string, example: "1111222233334444" }
+ *               expireDate: { type: string, example: "12/29" }
+ */
 app.post('/api/auth/cards', rateLimiter(20, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { cardNumber, expireDate } = req.body;
   if (!cardNumber || cardNumber.length !== 16) return res.status(400).json({ error: 'Неверный номер карты' });
@@ -419,6 +525,15 @@ app.post('/api/auth/cards', rateLimiter(20, 15 * 60 * 1000), authenticateToken, 
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/cards:
+ *   get:
+ *     tags: [Payments]
+ *     summary: Получить список привязанных карт пользователя
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/cards', authenticateToken, async (req, res) => {
   try {
     const cards = await prisma.linkedCards.findMany({ where: { user_id: req.user.userId } });
@@ -428,6 +543,20 @@ app.get('/api/auth/cards', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/cards/{id}:
+ *   delete:
+ *     tags: [Payments]
+ *     summary: Удалить привязанную карту
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ */
 app.delete('/api/auth/cards/:id', authenticateToken, async (req, res) => {
   try {
     await prisma.linkedCards.deleteMany({ where: { id: req.params.id, user_id: req.user.userId } });
@@ -437,6 +566,15 @@ app.delete('/api/auth/cards/:id', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/refill:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Пополнить виртуальный баланс аккаунта
+ *     security:
+ *       - bearerAuth: []
+ */
 app.post('/api/auth/refill', rateLimiter(15, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { amount, cvc, useLinkedCard, cardNumber, expireDate } = req.body;
   const parsedAmount = parseFloat(amount);
@@ -464,6 +602,15 @@ app.post('/api/auth/refill', rateLimiter(15, 15 * 60 * 1000), authenticateToken,
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/transactions:
+ *   get:
+ *     tags: [Payments]
+ *     summary: Получить историю транзакций пользователя
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/transactions', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.transactions.findMany({ where: { user_id: req.user.userId }, orderBy: { created_at: 'desc' } });
@@ -505,9 +652,17 @@ app.post('/api/auth/bookings/pay-debt', rateLimiter(15, 15 * 60 * 1000), authent
   }
 });
 
+// активные услуги и брони
 
-// активные услуги и уборки
-
+/**
+ * @openapi
+ * /api/auth/cleaning/request:
+ *   post:
+ *     tags: [Guest Services]
+ *     summary: Запросить уборку в номер
+ *     security:
+ *       - bearerAuth: []
+ */
 app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
   try {
     const activeBooking = await prisma.bookings.findFirst({
@@ -531,6 +686,15 @@ app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenti
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/cleaning/status:
+ *   get:
+ *     tags: [Guest Services]
+ *     summary: Получить статусы всех запрошенных уборок
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.cleaningRequests.findMany({ where: { user_id: req.user.userId }, orderBy: { created_at: 'desc' } });
@@ -540,6 +704,15 @@ app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/employee/tasks:
+ *   get:
+ *     tags: [Employee Services]
+ *     summary: Получить задачи на сегодня (для персонала)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   try {
     const schedules = await prisma.employeeSchedules.findMany({
@@ -612,6 +785,15 @@ app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/employee/tasks/{id}/status:
+ *   put:
+ *     tags: [Employee Services]
+ *     summary: Изменить статус рабочей задачи (Сотрудником)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.put('/api/auth/employee/tasks/:id/status', rateLimiter(50, 15 * 60 * 1000), authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   const { status, isCleaningRequest } = req.body;
   try {
@@ -644,13 +826,22 @@ app.put('/api/auth/employee/tasks/:id/status', rateLimiter(50, 15 * 60 * 1000), 
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/massage/book:
+ *   post:
+ *     tags: [Guest Services]
+ *     summary: Записаться на сеанс массажа к выбранному мастеру
+ *     security:
+ *       - bearerAuth: []
+ */
 app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { specialistId, date, time } = req.body;
 
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    today.setHours(0, 0, 0, 0)
+
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
@@ -715,6 +906,15 @@ app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticate
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/massage/my:
+ *   get:
+ *     tags: [Guest Services]
+ *     summary: Получить свои записи на массаж
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.massageBookings.findMany({
@@ -727,6 +927,15 @@ app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/massage/my/{id}:
+ *   delete:
+ *     tags: [Guest Services]
+ *     summary: Отменить запись на массаж (С возвратом средств)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.delete('/api/auth/massage/my/:id', authenticateToken, async (req, res) => {
   try {
     const booking = await prisma.massageBookings.findUnique({
@@ -833,8 +1042,17 @@ app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee',
 });
 
 
-//администрирование
+// администратирование 
 
+/**
+ * @openapi
+ * /api/auth/admin/users:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Получить список всех пользователей системы (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     const users = await prisma.users.findMany();
@@ -844,6 +1062,15 @@ app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), asyn
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/admin/users/{id}/role:
+ *   put:
+ *     tags: [Admin]
+ *     summary: Изменить системную роль пользователя (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.put('/api/auth/admin/users/:id/role', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { role } = req.body;
   try {
@@ -854,6 +1081,15 @@ app.put('/api/auth/admin/users/:id/role', rateLimiter(30, 15 * 60 * 1000), authe
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/admin/users/{id}/block:
+ *   put:
+ *     tags: [Admin]
+ *     summary: Заблокировать / Разблокировать пользователя (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.put('/api/auth/admin/users/:id/block', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { isBlocked } = req.body;
   try {
@@ -864,6 +1100,15 @@ app.put('/api/auth/admin/users/:id/block', rateLimiter(30, 15 * 60 * 1000), auth
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/admin/users/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Полностью удалить пользователя (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.delete('/api/auth/admin/users/:id', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     await prisma.users.delete({ where: { id: req.params.id } });
@@ -873,6 +1118,15 @@ app.delete('/api/auth/admin/users/:id', rateLimiter(30, 15 * 60 * 1000), authent
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/admin/tasks:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Получить список всех задач и запросов уборок (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/admin/tasks', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     const cleaningRequests = await prisma.cleaningRequests.findMany({ orderBy: { created_at: 'desc' } });
@@ -883,6 +1137,15 @@ app.get('/api/auth/admin/tasks', authenticateToken, requireRole(['Admin']), asyn
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/admin/tasks/assign:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Назначить задачу на конкретного сотрудника (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { taskId, employeeId } = req.body;
   try {
@@ -897,8 +1160,17 @@ app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authen
 });
 
 
-// дополнительные услуги и сиддинг 
+// дополнительные услуги и сиддинг
 
+/**
+ * @openapi
+ * /api/auth/services/purchase:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Добавить дополнительную услугу в счет проживания
+ *     security:
+ *       - bearerAuth: []
+ */
 app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { serviceName, quantity } = req.body;
   const qty = parseInt(quantity) || 1;
@@ -906,7 +1178,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
   if (qty <= 0) {
     return res.status(400).json({ error: 'Количество должно быть больше нуля.' });
   }
-
   const normalizedServiceName = serviceName ? serviceName.trim().toLowerCase() : '';
 
   try {
@@ -995,7 +1266,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
 
     // 4. Списание средств и проведение транзакции
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
-    
     let cost = parseFloat(service.price) * qty;
     if (normalizedServiceName === 'parking') {
       cost = parseFloat(service.price) * qty * stayNights;
@@ -1037,6 +1307,15 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/services/my:
+ *   get:
+ *     tags: [Payments]
+ *     summary: Получить список всех купленных дополнительных услуг
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/auth/services/my', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.userServices.findMany({
