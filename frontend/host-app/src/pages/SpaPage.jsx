@@ -10,7 +10,12 @@ import { formatPrice } from '../utils/price';
 export default function SpaPage({ t, currency, lang, user, setUser }) {
   const navigate = useNavigate();
 
-  // Получение сегодняшней даты в формате
+  // Автоопределение языка
+  const isRu = !lang || lang.toUpperCase() === 'RU';
+
+  const [openMassageModal, setOpenMassageModal] = useState(false);
+  const [massageAlert, setMassageAlert] = useState(null);
+  
   const getTodayDateString = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -21,9 +26,6 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
 
   const todayStr = getTodayDateString();
 
-  const [openMassageModal, setOpenMassageModal] = useState(false);
-  const [massageAlert, setMassageAlert] = useState(null);
-  
   const [massageDate, setMassageDate] = useState(todayStr);
   const [massageTime, setMassageTime] = useState('14:00');
   const [selectedSpecialist, setSelectedSpecialist] = useState(1);
@@ -37,7 +39,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
         if (setUser && user) {
           setUser({ ...user, balance: response.data.newBalance });
         }
-        window.alert(lang === 'RU' ? 'Успешно добавлено в проживание!' : 'Successfully added to stay!');
+        window.alert(isRu ? 'Успешно добавлено в проживание!' : 'Successfully added to stay!');
       }
     } catch (error) {
       window.alert(error.response?.data?.error || 'Ошибка при покупке');
@@ -50,7 +52,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
     if (val < todayStr) {
       setMassageAlert({ 
         type: 'error', 
-        text: lang === 'RU' ? 'Нельзя выбрать прошедшую дату!' : 'Cannot select a past date!' 
+        text: isRu ? 'Нельзя выбрать прошедшую дату!' : 'Cannot select a past date!' 
       });
       setMassageDate(todayStr);
     } else {
@@ -64,7 +66,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
     setMassageAlert(null);
 
     if (!massageDate || !massageTime) {
-      setMassageAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, заполните дату и время!' : 'Please fill date and time!' });
+      setMassageAlert({ type: 'error', text: isRu ? 'Пожалуйста, заполните дату и время!' : 'Please fill date and time!' });
       return;
     }
 
@@ -73,7 +75,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
     today.setHours(0, 0, 0, 0);
 
     if (selectedDate < today) {
-      setMassageAlert({ type: 'error', text: lang === 'RU' ? 'Вы не можете записаться на прошедшую дату!' : 'You cannot book a past date!' });
+      setMassageAlert({ type: 'error', text: isRu ? 'Вы не можете записаться на прошедшую дату!' : 'You cannot book a past date!' });
       return;
     }
 
@@ -118,16 +120,16 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
             <Box sx={{ pl: { lg: 4 } }}>
               <Typography variant="h3" sx={{ mb: 3, color: 'text.primary', fontFamily: 'Playfair Display' }}>DeepBlue SPA & Бани</Typography>
               <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary', lineHeight: 1.8 }}>
-                {lang === 'RU' ? 'Погрузитесь в атмосферу термальных источников и традиционных бань курорта. Доступ предоставляется на весь период проживания.' : 'Immerse yourself in thermal pools and saunas. Unlimited access is granted for the entire period of your stay.'}
+                {isRu ? 'Погрузитесь в атмосферу термальных источников и традиционных бань курорта. Доступ предоставляется на весь период проживания.' : 'Immerse yourself in thermal pools and saunas. Unlimited access is granted for the entire period of your stay.'}
               </Typography>
               
               <Typography variant="h5" color="secondary" sx={{ fontWeight: 'bold', mb: 3 }}>
-                {lang === 'RU' ? 'Бани (на весь период проживания):' : 'Saunas (For the entire stay):'} {formatPrice(7800, currency, lang)}
+                {isRu ? 'Бани (на весь период проживания):' : 'Saunas (For the entire stay):'} {formatPrice(7800, currency, lang)}
               </Typography>
 
               {showPurchaseBtn && (
                 <Button variant="contained" onClick={() => handlePurchaseService('saunas')} sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0, mb: 3 }}>
-                  {lang === 'RU' ? 'Добавить в проживание' : 'Add to stay'}
+                  {isRu ? 'Добавить в проживание' : 'Add to stay'}
                 </Button>
               )}
 
@@ -159,11 +161,11 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                {/* кнопка брони массажа*/}
                {showPurchaseBtn ? (
                  <Button variant="contained" onClick={() => setOpenMassageModal(true)} sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0 }}>
-                   {lang === 'RU' ? 'ЗАБРОНИРОВАТЬ' : 'BOOK SESSION'}
+                   {isRu ? 'ЗАБРОНИРОВАТЬ' : 'BOOK SESSION'}
                  </Button>
                ) : (
                  <Button variant="contained" disabled sx={{ borderRadius: 0 }}>
-                   {lang === 'RU' ? 'Доступно гостям' : 'Guests Only'}
+                   {isRu ? 'Доступно гостям' : 'Guests Only'}
                  </Button>
                )}
             </Box>
@@ -194,7 +196,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
-          {lang === 'RU' ? 'Запись на массаж' : 'Book Massage'}
+          {isRu ? 'Запись на массаж' : 'Book Massage'}
         </DialogTitle>
         <DialogContent>
           {massageAlert && (
@@ -209,7 +211,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
               {/* Выбор специалиста */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'ВЫБЕРИТЕ СПЕЦИАЛИСТА' : 'SELECT SPECIALIST'}
+                  {isRu ? 'ВЫБЕРИТЕ СПЕЦИАЛИСТА' : 'SELECT SPECIALIST'}
                 </Typography>
                 <Select
                   fullWidth
@@ -217,21 +219,21 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                   onChange={(e) => setSelectedSpecialist(e.target.value)}
                   sx={{ borderRadius: 0 }}
                 >
-                  <MenuItem value={1}>{lang === 'RU' ? 'Алия Шарапова' : 'Alia Sharapova'}</MenuItem>
-                  <MenuItem value={2}>{lang === 'RU' ? 'Карина Воробьева' : 'Karina Vorobieva'}</MenuItem>
-                  <MenuItem value={3}>{lang === 'RU' ? 'Даниил Царев' : 'Daniil Tsarev'}</MenuItem>
+                  <MenuItem value={1}>{isRu ? 'Алия Шарапова' : 'Alia Sharapova'}</MenuItem>
+                  <MenuItem value={2}>{isRu ? 'Карина Воробьева' : 'Karina Vorobieva'}</MenuItem>
+                  <MenuItem value={3}>{isRu ? 'Даниил Царев' : 'Daniil Tsarev'}</MenuItem>
                 </Select>
               </Box>
 
-              {/* Выбор даты с блокировкой прошедших */}
+              {/* Выбор даты с блокировкой дат */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'ВЫБЕРИТЕ ДАТУ' : 'SELECT DATE'}
+                  {isRu ? 'ВЫБЕРИТЕ ДАТУ' : 'SELECT DATE'}
                 </Typography>
                 <input 
                   type="date" 
                   required
-                  min={todayStr} // Блокировка выбора прошедших дней на календаре
+                  min={todayStr}
                   value={massageDate} 
                   onChange={handleDateChange}
                   style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
@@ -241,7 +243,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
               {/* Выбор времени */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'ВЫБЕРИТЕ ВРЕМЯ' : 'SELECT TIME'}
+                  {isRu ? 'ВЫБЕРИТЕ ВРЕМЯ' : 'SELECT TIME'}
                 </Typography>
                 <Select
                   fullWidth
@@ -260,7 +262,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
               <Divider />
 
               <Typography variant="h5" align="center" color="secondary" sx={{ fontWeight: 'bold' }}>
-                {lang === 'RU' ? 'К оплате:' : 'Total:'} {formatPrice(1200, currency, lang)}
+                {isRu ? 'К оплате:' : 'Total:'} {formatPrice(1200, currency, lang)}
               </Typography>
 
               <Button 
@@ -269,7 +271,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                 fullWidth 
                 sx={{ bgcolor: '#c1a37f', color: 'white', py: 1.8, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: '#a68a64' } }}
               >
-                {lang === 'RU' ? 'ОПЛАТИТЬ И ЗАПИСАТЬСЯ' : 'PAY & BOOK'}
+                {isRu ? 'ОПЛАТИТЬ И ЗАПИСАТЬСЯ' : 'PAY & BOOK'}
               </Button>
             </Box>
           </Box>

@@ -17,6 +17,9 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const { roomType } = useParams();
   const navigate = useNavigate();
 
+  // Автоопределение языка
+  const isRu = !lang || lang.toUpperCase() === 'RU';
+
   const [openCheckout, setOpenCheckout] = useState(false);
   const [openPaymentModal, setOpenPaymentModal] = useState(false);
   const [bookingAlert, setBookingAlert] = useState(null);
@@ -72,10 +75,10 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
   const getCustomCapacityString = () => {
     const capacities = {
-      standard: lang === 'RU' ? 'До 3 человек' : 'Up to 3 people',
-      business: lang === 'RU' ? 'До 5 человек' : 'Up to 5 people',
-      lux: lang === 'RU' ? 'До 7 человек' : 'Up to 7 people',
-      penthouse: lang === 'RU' ? 'До 15 человек' : 'Up to 15 people'
+      standard: isRu ? 'До 3 человек' : 'Up to 3 people',
+      business: isRu ? 'До 5 человек' : 'Up to 5 people',
+      lux: isRu ? 'До 7 человек' : 'Up to 7 people',
+      penthouse: isRu ? 'До 15 человек' : 'Up to 15 people'
     };
     return capacities[roomType] || details.capacity;
   };
@@ -107,36 +110,34 @@ export default function RoomDetailPage({ t, currency, lang }) {
     const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     return details.priceRub * nights;
   };
-
   const handlePayNowClick = () => {
     setBookingAlert(null);
 
     if (!termsAccepted) {
-      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, примите пользовательское соглашение!' : 'Please accept the User Agreement!' });
+      setBookingAlert({ type: 'error', text: isRu ? 'Пожалуйста, примите пользовательское соглашение!' : 'Please accept the User Agreement!' });
       return;
     }
 
     if (!checkIn || !checkOut) {
-      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, заполните даты заезда и выезда!' : 'Please fill in check-in and check-out dates!' });
+      setBookingAlert({ type: 'error', text: isRu ? 'Пожалуйста, заполните даты заезда и выезда!' : 'Please fill in check-in and check-out dates!' });
       return;
     }
 
     const start = new Date(checkIn);
     const end = new Date(checkOut);
     if (start >= end) {
-      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Дата выезда должна быть позже даты заселения!' : 'Check-out date must be later than check-in date!' });
+      setBookingAlert({ type: 'error', text: isRu ? 'Дата выезда должна быть позже даты заселения!' : 'Check-out date must be later than check-in date!' });
       return;
     }
 
     setOpenCheckout(false);
     setOpenPaymentModal(true);
-  };
-
+  }
   const handlePayLaterClick = () => {
     setBookingAlert(null);
 
     if (!termsAccepted) {
-      setBookingAlert({ type: 'error', text: lang === 'RU' ? 'Пожалуйста, примите пользовательское соглашение!' : 'Please accept the User Agreement!' });
+      setBookingAlert({ type: 'error', text: isRu ? 'Пожалуйста, примите пользовательское соглашение!' : 'Please accept the User Agreement!' });
       return;
     }
 
@@ -148,13 +149,13 @@ export default function RoomDetailPage({ t, currency, lang }) {
     setPaymentAlert(null);
 
     if (payNow && (cvc.length !== 3 || isNaN(parseInt(cvc)))) {
-      setPaymentAlert({ type: 'error', text: lang === 'RU' ? 'Неверный CVV (3 цифры)' : 'Invalid CVV (3 digits)' });
+      setPaymentAlert({ type: 'error', text: isRu ? 'Неверный CVV (3 цифры)' : 'Invalid CVV (3 digits)' });
       return;
     }
 
     if (payNow && !useLinkedCard) {
       if (newCardNumber.length !== 16 || newExpireDate.length !== 5) {
-        setPaymentAlert({ type: 'error', text: lang === 'RU' ? 'Заполните корректно данные карты' : 'Please enter valid card details' });
+        setPaymentAlert({ type: 'error', text: isRu ? 'Заполните корректно данные карты' : 'Please enter valid card details' });
         return;
       }
     }
@@ -197,7 +198,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
     <Box sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Button onClick={() => navigate('/rooms')} sx={{ mb: 4, color: 'text.secondary', fontWeight: 'bold' }}>
-          ← {lang === 'RU' ? 'НАЗАД К СПИСКУ' : 'BACK TO LIST'}
+          ← {isRu ? 'НАЗАД К СПИСКУ' : 'BACK TO LIST'}
         </Button>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 6 }}>
@@ -272,7 +273,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
-          {lang === 'RU' ? 'Оформление брони' : 'Room Checkout'}
+          {isRu ? 'Оформление брони' : 'Room Checkout'}
         </DialogTitle>
         <DialogContent>
           {bookingAlert && (
@@ -283,9 +284,11 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
-            {/* Выбор дат заезда/выезда  */}
+            {/* Выбор дат заезда/выезда с блокировкой дат */}
             <Box>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>ДАТА ЗАЕЗДА</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                {isRu ? 'ДАТА ЗАЕЗДА' : 'CHECK-IN DATE'}
+              </Typography>
               <input 
                 type="date" 
                 min={todayStr} 
@@ -301,7 +304,9 @@ export default function RoomDetailPage({ t, currency, lang }) {
             </Box>
 
             <Box>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>ДАТА ВЫЕЗДА</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                {isRu ? 'ДАТА ВЫЕЗДА' : 'CHECK-OUT DATE'}
+              </Typography>
               <input 
                 type="date" 
                 min={checkIn || todayStr} 
@@ -311,9 +316,11 @@ export default function RoomDetailPage({ t, currency, lang }) {
               />
             </Box>
 
-            {/* Выбор количества человек  */}
+            {/* Выбор количества человек */}
             <Box>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>КОЛИЧЕСТВО ГОСТЕЙ</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
+                {isRu ? 'КОЛИЧЕСТВО ГОСТЕЙ' : 'NUMBER OF GUESTS'}
+              </Typography>
               <Select 
                 fullWidth 
                 value={guestsCount} 
@@ -322,7 +329,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               >
                 {Array.from({ length: maxGuests }, (_, i) => i + 1).map(num => (
                   <MenuItem key={num} value={num}>
-                    {num} {num === 1 ? (lang === 'RU' ? 'человек' : 'person') : (lang === 'RU' ? 'человека' : 'people')}
+                    {num} {num === 1 ? (isRu ? 'человек' : 'person') : (isRu ? 'человека' : 'people')}
                   </MenuItem>
                 ))}
               </Select>
@@ -338,7 +345,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
                 style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
               <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', lineHeight: 1.4 }}>
-                {lang === 'RU' ? 'Я согласен с ' : 'I agree to the '}
+                {isRu ? 'Я согласен с ' : 'I agree to the '}
                 <span 
                   onClick={() => {
                     setOpenCheckout(false);
@@ -346,7 +353,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
                   }} 
                   style={{ color: '#c1a37f', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {lang === 'RU' ? 'пользовательским соглашением' : 'User Agreement'}
+                  {isRu ? 'пользовательским соглашением' : 'User Agreement'}
                 </span>
               </Typography>
             </Box>
@@ -354,7 +361,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
             <Divider />
 
             <Typography variant="h5" align="center" color="secondary" sx={{ fontWeight: 'bold', my: 1 }}>
-              {lang === 'RU' ? 'Итого:' : 'Total:'} {formatPrice(calculateTotal(), currency, lang)}
+              {isRu ? 'Итого:' : 'Total:'} {formatPrice(calculateTotal(), currency, lang)}
             </Typography>
 
             {/* Способы оплаты */}
@@ -373,10 +380,10 @@ export default function RoomDetailPage({ t, currency, lang }) {
                 <AccountBalanceWalletIcon sx={{ color: 'secondary.main', fontSize: 30 }} />
                 <Box>
                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                    {lang === 'RU' ? 'Оплатить сейчас' : 'Pay Now'}
+                    {isRu ? 'Оплатить сейчас' : 'Pay Now'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {lang === 'RU' ? 'Списание средств с баланса аккаунта' : 'Deduct from your account balance'}
+                    {isRu ? 'Списание средств с баланса аккаунта' : 'Deduct from your account balance'}
                   </Typography>
                 </Box>
               </Stack>
@@ -397,10 +404,10 @@ export default function RoomDetailPage({ t, currency, lang }) {
                 <CreditCardIcon sx={{ color: '#c1a37f', fontSize: 30 }} />
                 <Box>
                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                    {lang === 'RU' ? 'Оплатить при заезде' : 'Reserve & Pay Later'}
+                    {isRu ? 'Оплатить при заезде' : 'Reserve & Pay Later'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {lang === 'RU' ? 'Зарезервировать в долг (оплата позже)' : 'Reserve with debt (unpaid balance)'}
+                    {isRu ? 'Зарезервировать в долг (оплата позже)' : 'Reserve with debt (unpaid balance)'}
                   </Typography>
                 </Box>
               </Stack>
@@ -410,7 +417,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
         </DialogContent>
       </Dialog>
 
-      {/* Второе модальное окно: Оплата картой при бронировании */}
+      {/* Второе модальное окно: Оплата картой при бронировании*/}
       <Dialog 
         open={openPaymentModal} 
         onClose={() => setOpenPaymentModal(false)}
@@ -421,7 +428,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
-          {lang === 'RU' ? 'Оплата картой' : 'Card Payment'}
+          {isRu ? 'Оплата картой' : 'Card Payment'}
         </DialogTitle>
         <DialogContent>
           {paymentAlert && (
@@ -433,17 +440,17 @@ export default function RoomDetailPage({ t, currency, lang }) {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
             <Typography variant="h6" align="center" color="secondary" sx={{ fontWeight: 'bold' }}>
-              {lang === 'RU' ? 'К оплате:' : 'To Pay:'} {formatPrice(calculateTotal(), currency, lang)}
+              {isRu ? 'К оплате:' : 'To Pay:'} {formatPrice(calculateTotal(), currency, lang)}
             </Typography>
 
             {cards.length > 0 ? (
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'СПОСОБ ОПЛАТЫ' : 'PAYMENT METHOD'}
+                  {isRu ? 'СПОСОБ ОПЛАТЫ' : 'PAYMENT METHOD'}
                 </Typography>
                 <Select fullWidth value={useLinkedCard} onChange={(e) => setUseLinkedCard(e.target.value)} sx={{ borderRadius: 0 }}>
-                  <MenuItem value={true}>{lang === 'RU' ? `Привязанная карта (•••• ${cards[0].lastFour})` : `Linked Card (•••• ${cards[0].lastFour})`}</MenuItem>
-                  <MenuItem value={false}>{lang === 'RU' ? 'Использовать другую карту' : 'Use another card'}</MenuItem>
+                  <MenuItem value={true}>{isRu ? `Привязанная карта (•••• ${cards[0].lastFour})` : `Linked Card (•••• ${cards[0].lastFour})`}</MenuItem>
+                  <MenuItem value={false}>{isRu ? 'Использовать другую карту' : 'Use another card'}</MenuItem>
                 </Select>
               </Box>
             ) : null}
@@ -452,13 +459,13 @@ export default function RoomDetailPage({ t, currency, lang }) {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box>
                   <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                    {lang === 'RU' ? 'НОМЕР КАРТЫ' : 'CARD NUMBER'}
+                    {isRu ? 'НОМЕР КАРТЫ' : 'CARD NUMBER'}
                   </Typography>
                   <TextField required fullWidth placeholder="16 digits" value={newCardNumber} onChange={(e) => setNewCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))} sx={inputStyle} />
                 </Box>
                 <Box>
                   <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
-                    {lang === 'RU' ? 'СРОК ДЕЙСТВИЯ' : 'EXPIRATION DATE'}
+                    {isRu ? 'СРОК ДЕЙСТВИЯ' : 'EXPIRATION DATE'}
                   </Typography>
                   <TextField required fullWidth placeholder="MM/YY" value={newExpireDate} onChange={(e) => setNewExpireDate(e.target.value.replace(/[^\d/]/g, '').slice(0, 5))} sx={inputStyle} />
                 </Box>
@@ -478,7 +485,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               onClick={() => handleConfirmBooking(true)}
               sx={{ bgcolor: '#c1a37f', color: 'white', py: 1.8, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: '#a68a64' } }}
             >
-              {lang === 'RU' ? 'ПОДТВЕРДИТЬ И ОПЛАТИТЬ' : 'CONFIRM & PAY'}
+              {isRu ? 'ПОДТВЕРДИТЬ И ОПЛАТИТЬ' : 'CONFIRM & PAY'}
             </Button>
           </Box>
         </DialogContent>
