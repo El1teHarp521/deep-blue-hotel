@@ -4,6 +4,9 @@ const cookieParser = require('cookie-parser');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const swaggerJsDoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -16,6 +19,8 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+
+// мидлавры двух токенов для синхронизации с AUTH-SERVICE
 
 const handleRefresh = async (req, res, next, refreshToken) => {
   if (!refreshToken) {
@@ -30,6 +35,7 @@ const handleRefresh = async (req, res, next, refreshToken) => {
       return res.status(403).json({ error: 'Пользователь не найден или заблокирован.' });
     }
 
+    // Генерируем новый Access-токен
     const newAccessToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role }, 
       process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', 
@@ -70,7 +76,48 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+// настройки swagger (openapi 3.0)
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'DeepBlue Booking Service API',
+      version: '1.0.0',
+      description: 'Документация эндпоинтов бронирования номеров, контроля доступности комнат и администрирования постояльцев',
+      contact: { name: 'DeepBlue Development Team' }
+    },
+    servers: [{ url: 'http://localhost:3001' }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Введите ваш JWT-токен для авторизации роутов'
+        }
+      }
+    }
+  },
+  apis: [path.join(__dirname, 'index.js')] 
+};
 
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+
+// эндпоинты бронирования и номерного фонда
+
+/**
+ * @openapi
+ * /api/rooms/seed:
+ *   get:
+ *     tags: [Rooms]
+ *     summary: Наполнить базу данных номерами по умолчанию (Сиддинг фонда)
+ *     responses:
+ *       200:
+ *         description: База номеров успешно инициализирована
+ */
 app.get('/api/rooms/seed', async (req, res) => {
   try {
     await prisma.rooms.deleteMany();
@@ -125,7 +172,28 @@ app.get('/api/rooms/seed', async (req, res) => {
   }
 });
 
-// бронирование
+/**
+ * @openapi
+ * /api/bookings:
+ *   post:
+ *     tags: [Bookings]
+ *     summary: Создать новое бронирование отеля
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [category, checkIn, checkOut, guestsCount]
+ *             properties:
+ *               category: { type: string, example: "standard" }
+ *               checkIn: { type: string, example: "2026-06-01" }
+ *               checkOut: { type: string, example: "2026-06-08" }
+ *               guestsCount: { type: number, example: 2 }
+ *               payNow: { type: boolean, example: true }
+ */
 app.post('/api/bookings', authenticateToken, async (req, res) => {
   const { category, checkIn, checkOut, payNow, guestsCount } = req.body;
 
@@ -140,11 +208,13 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Дата выезда должна быть позже даты заселения' });
   }
 
+  // Валидация количества проживающих гостей
   const guestsNum = parseInt(guestsCount) || 1;
   if (guestsNum <= 0) {
     return res.status(400).json({ error: 'Количество гостей должно быть не менее 1 человека.' });
   }
 
+  // Вместимость номеров
   const maxGuestsMap = {
     standard: 3,
     business: 5,
@@ -164,6 +234,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
+    // ОГРАНИЧЕНИЕ: Не более одного активного бронирования на одну учетную запись
     const existingActiveBooking = await prisma.bookings.findFirst({
       where: {
         user_id: req.user.userId,
@@ -176,7 +247,6 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
         error: 'По правилам отеля, вы не можете забронировать более одного номера одновременно на одну учетную запись.' 
       });
     }
-
     const availableRooms = await prisma.rooms.findMany({
       where: {
         category: category,
@@ -261,15 +331,24 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// номера с автоматической проверкой занятости
+/**
+ * @openapi
+ * /api/rooms:
+ *   get:
+ *     tags: [Rooms]
+ *     summary: Получить список всех номеров с авто-проверкой занятости на дату
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         schema: { type: string }
+ *         description: "Дата для проверки занятости (YYYY-MM-DD). По умолчанию - Сегодня."
+ */
 app.get('/api/rooms', async (req, res) => {
   const { date } = req.query;
 
   try {
-    let rooms = await prisma.rooms.findMany({ orderBy: { room_number: 'asc' } });
-
+    let rooms = await prisma.rooms.findMany({ orderBy: { room_number: 'asc' } })
     const checkDate = date ? new Date(date) : new Date();
-    
     const activeBookings = await prisma.bookings.findMany({
       where: {
         booking_status: 'Confirmed',
@@ -292,7 +371,15 @@ app.get('/api/rooms', async (req, res) => {
   }
 });
 
-// активное бронирование постояльца
+/**
+ * @openapi
+ * /api/bookings/active:
+ *   get:
+ *     tags: [Bookings]
+ *     summary: Получить информацию об активном бронировании вошедшего гостя
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/bookings/active', authenticateToken, async (req, res) => {
   try {
     const activeBooking = await prisma.bookings.findFirst({
@@ -324,11 +411,17 @@ app.get('/api/bookings/active', authenticateToken, async (req, res) => {
 });
 
 
+// административные роуты
 
-// Админ роуты
-
-
-// 1. Получить все бронирования отеля с именами гостей и номерами комнат
+/**
+ * @openapi
+ * /api/admin/bookings:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Получить список всех бронирований отеля (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
@@ -343,6 +436,7 @@ app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
     const users = await prisma.users.findMany({ where: { id: { in: userIds } } });
     const rooms = await prisma.rooms.findMany({ where: { id: { in: roomIds } } });
 
+    // объединение данных
     const joined = list.map(booking => {
       const user = users.find(u => u.id === booking.user_id);
       const room = rooms.find(r => r.id === booking.room_id);
@@ -361,7 +455,15 @@ app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// 2. Изменить цену или статус номера
+/**
+ * @openapi
+ * /api/admin/rooms/{id}:
+ *   put:
+ *     tags: [Admin]
+ *     summary: Изменить цену или статус технического обслуживания номера (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.put('/api/admin/rooms/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
@@ -383,7 +485,15 @@ app.put('/api/admin/rooms/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// 3. Выселить постояльца / Снять бронь (изменение статуса бронирования)
+/**
+ * @openapi
+ * /api/admin/bookings/{id}/status:
+ *   put:
+ *     tags: [Admin]
+ *     summary: Изменить статус проживания/брони (Снять бронь / Выселить) (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.put('/api/admin/bookings/:id/status', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
@@ -402,7 +512,15 @@ app.put('/api/admin/bookings/:id/status', authenticateToken, async (req, res) =>
   }
 });
 
-// 4. Полностью удалить запись бронирования из БД
+/**
+ * @openapi
+ * /api/admin/bookings/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Полностью удалить запись бронирования из базы данных (Admin Only)
+ *     security:
+ *       - bearerAuth: []
+ */
 app.delete('/api/admin/bookings/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });
