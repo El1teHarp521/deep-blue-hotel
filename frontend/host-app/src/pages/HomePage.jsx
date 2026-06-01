@@ -21,18 +21,22 @@ export default function HomePage({ t }) {
   ];
 
   return (
-    <Box sx={{ overflowX: 'hidden' }}>
-      <Box sx={{ 
-        height: '95vh', 
-        width: '100%',
-        backgroundImage: 'url(/images/hero-bg.jpg)', 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center'
-      }} />
+    <Box component="main" sx={{ overflowX: 'hidden' }}>
+      <Box 
+        role="img" 
+        aria-label="Главный баннер отеля DeepBlue Resort"
+        sx={{ 
+          height: '95vh', 
+          width: '100%',
+          backgroundImage: 'url(/images/hero-bg.jpg)', 
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center'
+        }} 
+      />
 
       {/* инф-блок */}
       <Container maxWidth="xl" sx={{ mt: 20, mb: 20, textAlign: 'center' }}>
-        <Typography variant="h2" color="primary" sx={{ mb: 4, fontSize: '3.5rem' }}>{t.offerTitle}</Typography>
+        <Typography variant="h1" color="primary" sx={{ fontSize: '3.5rem', fontWeight: 'bold', mb: 4 }}>{t.offerTitle}</Typography>
         <Typography variant="body1" sx={{ maxWidth: '900px', mx: 'auto', mb: 12, color: 'text.primary', opacity: 0.8, lineHeight: 2.2, fontSize: '1.1rem' }}>
           {t.offerSub}
         </Typography>
@@ -41,9 +45,9 @@ export default function HomePage({ t }) {
           {offers.map((item, idx) => (
             <Box key={idx} sx={{ textAlign: 'left' }}>
               <Paper sx={{ p: 0, mb: 3, border: 'none', borderRadius: 0 }}>
-                <CardMedia component="img" image={item.i} sx={{ height: 500, borderRadius: 0 }} />
+                <CardMedia component="img" image={item.i} alt={item.t} sx={{ height: 500, borderRadius: 0 }} />
               </Paper>
-              <Typography variant="h5" sx={{ fontWeight: 800, fontFamily: 'Playfair Display', mb: 2, color: 'text.primary' }}>{item.t}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'Playfair Display', mb: 2, color: 'text.primary' }}>{item.t}</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.8, opacity: 0.9 }}>{item.d}</Typography>
             </Box>
           ))}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Container, Typography, CardMedia, Paper, Button, IconButton } from '@mui/material'; // ДОБАВИЛ ICONBUTTON В ИМПОРТ
+import { Box, Container, Typography, CardMedia, Paper, Button, IconButton } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import axios from 'axios';
@@ -39,7 +39,7 @@ export default function RestaurantPage({ t, currency, lang, user }) {
   const showPurchaseBtn = user && ['Guest', 'Employee', 'Admin'].includes(user.role);
 
   return (
-    <Box sx={{ pt: 22, pb: 10 }}>
+    <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Paper sx={{ 
           position: 'relative', 
@@ -54,6 +54,7 @@ export default function RestaurantPage({ t, currency, lang, user }) {
           <CardMedia 
             component="img" 
             image={restaurantImages[activeSlide]} 
+            alt={`${t.restTitle} - слайд ${activeSlide + 1}`}
             sx={{ 
               height: '100%', 
               objectFit: 'cover',
@@ -64,6 +65,7 @@ export default function RestaurantPage({ t, currency, lang, user }) {
 
           <IconButton 
             onClick={handlePrev}
+            aria-label={lang === 'RU' ? 'Предыдущий слайд' : 'Previous slide'}
             sx={{ 
               position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)',
               bgcolor: 'rgba(1, 10, 25, 0.6)', color: 'white', borderRadius: 0, p: 2,
@@ -76,6 +78,7 @@ export default function RestaurantPage({ t, currency, lang, user }) {
 
           <IconButton 
             onClick={handleNext}
+            aria-label={lang === 'RU' ? 'Следующий слайд' : 'Next slide'}
             sx={{ 
               position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)',
               bgcolor: 'rgba(1, 10, 25, 0.6)', color: 'white', borderRadius: 0, p: 2,
@@ -94,6 +97,8 @@ export default function RestaurantPage({ t, currency, lang, user }) {
               <Box 
                 key={idx}
                 onClick={() => setActiveSlide(idx)}
+                role="button"
+                aria-label={lang === 'RU' ? `Перейти к слайду ${idx + 1}` : `Go to slide ${idx + 1}`}
                 sx={{ 
                   width: 10, height: 10, borderRadius: 0, cursor: 'pointer',
                   bgcolor: activeSlide === idx ? '#c1a37f' : 'rgba(255,255,255,0.4)',
@@ -105,7 +110,7 @@ export default function RestaurantPage({ t, currency, lang, user }) {
         </Paper>
 
         <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography variant="h2" color="text.primary" sx={{ mb: 2, fontFamily: 'Playfair Display' }}>
+          <Typography variant="h1" color="text.primary" sx={{ fontSize: '3rem', fontWeight: 'bold', mb: 2, fontFamily: 'Playfair Display' }}>
             {t.restTitle}
           </Typography>
           <Typography variant="body1" sx={{ color: 'text.secondary', maxWidth: 600, mx: 'auto' }}>
@@ -125,9 +130,9 @@ export default function RestaurantPage({ t, currency, lang, user }) {
           ].map((item, idx) => (
             <Paper key={idx} sx={{ p: 5, borderRadius: 0, bgcolor: 'background.paper', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <Box>
-                <Typography variant="h6" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{item.title}</Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>{item.time}</Typography>
-                <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 3 }}>
+                <Typography variant="h2" color="secondary" sx={{ fontSize: '1.25rem', fontWeight: 'bold', mb: 2 }}>{item.title}</Typography>
+                <Typography sx={{ fontSize: '2.125rem', fontWeight: 700, mb: 1, color: 'text.primary' }}>{item.time}</Typography>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 'bold', mb: 3, color: 'primary.main' }}>
                   {formatPrice(item.price, currency, lang)}
                 </Typography>
               </Box>

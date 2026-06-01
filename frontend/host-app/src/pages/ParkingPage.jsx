@@ -28,27 +28,33 @@ export default function ParkingPage({ t, currency, lang, user }) {
   const showPurchaseBtn = user && ['Guest', 'Employee', 'Admin'].includes(user.role);
 
   return (
-    <Box sx={{ pt: 22, pb: 10 }}>
+    <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography variant="h2" sx={{ fontFamily: 'Playfair Display', color: 'text.primary', mb: 2 }}>{t.parkTitle}</Typography>
-          <Typography variant="h5" color="secondary" sx={{ fontWeight: 700 }}>{t.parkSub}</Typography>
+          <Typography variant="h1" sx={{ fontSize: '3rem', fontWeight: 'bold', fontFamily: 'Playfair Display', color: 'text.primary', mb: 2 }}>{t.parkTitle}</Typography>
+          <Typography variant="body1" color="secondary" sx={{ fontSize: '1.25rem', fontWeight: 700 }}>{t.parkSub}</Typography>
         </Box>
 
         <Paper sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 0, mb: 8 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 3 }}>
-            <CardMedia component="img" image="/images/service-parking-1.jpg" sx={{ height: 450, objectFit: 'cover', borderRadius: 0 }} />
-            <CardMedia component="img" image="/images/service-parking-2.jpg" sx={{ height: 450, objectFit: 'cover', borderRadius: 0 }} />
+            <CardMedia component="img" image="/images/service-parking-1.jpg" alt={`${t.parkTitle} - Общий вид`} sx={{ height: 450, objectFit: 'cover', borderRadius: 0 }} />
+            <CardMedia component="img" image="/images/service-parking-2.jpg" alt={`${t.parkTitle} - Охраняемая зона`} sx={{ height: 450, objectFit: 'cover', borderRadius: 0 }} />
           </Box>
         </Paper>
 
         <Container maxWidth="md">
           <Paper sx={{ p: 6, borderRadius: 0, bgcolor: 'background.paper', textAlign: 'center' }}>
-             <Typography variant="h5" sx={{ mb: 3, color: 'text.primary', fontWeight: 'bold' }}>{t.parkSelect}</Typography>
-             <Typography variant="h6" color="secondary" sx={{ fontWeight: 'bold', mb: 3 }}>
+             <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 'bold', mb: 3, color: 'text.primary' }}>{t.parkSelect}</Typography>
+             <Typography sx={{ fontSize: '1.25rem', fontWeight: 'bold', mb: 3, color: 'secondary.main' }}>
                {formatPrice(3700, currency, lang)} / {lang === 'RU' ? 'место' : 'spot'}
              </Typography>
-             <Select fullWidth value={spots} onChange={(e) => setSpots(e.target.value)} sx={{ mb: 4, borderRadius: 0 }}>
+             <Select 
+               fullWidth 
+               value={spots} 
+               aria-label={lang === 'RU' ? 'Выбрать количество мест' : 'Select parking spots'}
+               onChange={(e) => setSpots(e.target.value)} 
+               sx={{ mb: 4, borderRadius: 0 }}
+             >
                <MenuItem value={1}>1 {lang === 'RU' ? 'место' : 'spot'}</MenuItem>
                <MenuItem value={2}>2 {lang === 'RU' ? 'места' : 'spots'}</MenuItem>
                <MenuItem value={3}>3 {lang === 'RU' ? 'места' : 'spots'}</MenuItem>
@@ -61,8 +67,8 @@ export default function ParkingPage({ t, currency, lang, user }) {
              )}
              
              {booked && (
-               <Box sx={{ mt: 4, p: 3, bgcolor: 'primary.main', color: 'text.primary', textAlign: 'center', borderRadius: 0 }}>
-                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{t.parkBooked} {booked.join(', ')} (Сектор VIP)</Typography>
+               <Box sx={{ mt: 4, p: 3, bgcolor: '#002F6C', color: 'white', textAlign: 'center', borderRadius: 0 }}>
+                 <Typography sx={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{t.parkBooked} {booked.join(', ')} (Сектор VIP)</Typography>
                </Box>
              )}
           </Paper>

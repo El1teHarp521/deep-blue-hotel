@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Box, Container, Typography, CardMedia, Button, Paper, 
-  Divider, IconButton, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, Alert, TextField, MenuItem, Select
+  Divider, IconButton, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, Stack, Alert, TextField, MenuItem, Select
 } from '@mui/material';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
@@ -17,7 +17,6 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const { roomType } = useParams();
   const navigate = useNavigate();
 
-  // Автоопределение языка
   const isRu = !lang || lang.toUpperCase() === 'RU';
 
   const [openCheckout, setOpenCheckout] = useState(false);
@@ -195,7 +194,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
   };
 
   return (
-    <Box sx={{ pt: 22, pb: 10 }}>
+    <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Button onClick={() => navigate('/rooms')} sx={{ mb: 4, color: 'text.secondary', fontWeight: 'bold' }}>
           ← {isRu ? 'НАЗАД К СПИСКУ' : 'BACK TO LIST'}
@@ -208,18 +207,29 @@ export default function RoomDetailPage({ t, currency, lang }) {
               <CardMedia 
                 component="img" 
                 image={images[activeSlide]} 
+                alt={`${details.title} - слайд ${activeSlide + 1}`}
                 sx={{ height: '100%', objectFit: 'cover', transition: 'opacity 0.4s ease-in-out', borderRadius: 0 }} 
               />
-              <IconButton onClick={handlePrev} sx={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 0, p: 2 }}>
+              <IconButton 
+                onClick={handlePrev} 
+                aria-label={isRu ? 'Предыдущее изображение' : 'Previous slide'}
+                sx={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 0, p: 2 }}
+              >
                 <ArrowBackIosNewIcon />
               </IconButton>
-              <IconButton onClick={handleNext} sx={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 0, p: 2 }}>
+              <IconButton 
+                onClick={handleNext} 
+                aria-label={isRu ? 'Следующее изображение' : 'Next slide'}
+                sx={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.6)', color: 'white', borderRadius: 0, p: 2 }}
+              >
                 <ArrowForwardIosIcon />
               </IconButton>
             </Paper>
 
             <Paper sx={{ p: 5, mb: 6, borderRadius: 0 }}>
-              <Typography variant="h3" sx={{ fontFamily: 'Playfair Display', mb: 3, color: 'text.primary' }}>{details.title}</Typography>
+              <Typography variant="h1" sx={{ fontSize: '2.5rem', fontFamily: 'Playfair Display', mb: 3, color: 'text.primary', fontWeight: 'bold' }}>
+                {details.title}
+              </Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 2, mb: 4 }}>
                 {details.desc}
               </Typography>
@@ -230,7 +240,9 @@ export default function RoomDetailPage({ t, currency, lang }) {
             </Paper>
 
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', mb: 3, fontWeight: 'bold', color: 'text.primary' }}>{t.includedTitle}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.8rem', fontFamily: 'Playfair Display', mb: 3, fontWeight: 'bold', color: 'text.primary' }}>
+                {t.includedTitle}
+              </Typography>
               <List>
                 {details.included.map((item, idx) => (
                   <ListItem key={idx} disablePadding sx={{ py: 1.5 }}>
@@ -251,7 +263,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
           <Box sx={{ position: 'sticky', top: 180, alignSelf: 'start' }}>
             <Paper sx={{ p: 5, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper', textAlign: 'center', borderRadius: 0 }}>
               <Typography variant="caption" sx={{ letterSpacing: 2, display: 'block', mb: 1, color: 'text.secondary' }}>{t.pricePerNight}</Typography>
-              <Typography variant="h2" color="secondary" sx={{ fontWeight: 'bold', mb: 4 }}>
+              <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', mb: 4, color: 'secondary.main' }}>
                 {formatPrice(details.priceRub, currency, lang)}
               </Typography>
               
@@ -299,6 +311,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
                 type="date" 
                 min={todayStr} 
                 value={checkIn} 
+                aria-label={isRu ? 'Дата заезда' : 'Check-in date'}
                 onChange={(e) => {
                   setCheckIn(e.target.value);
                   if (checkOut && e.target.value >= checkOut) {
@@ -317,12 +330,13 @@ export default function RoomDetailPage({ t, currency, lang }) {
                 type="date" 
                 min={checkIn || todayStr} 
                 value={checkOut} 
+                aria-label={isRu ? 'Дата выезда' : 'Check-out date'}
                 onChange={(e) => setCheckOut(e.target.value)} 
                 style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
               />
             </Box>
 
-            {/* Выбор количества человек*/}
+            {/* Выбор количества человек  */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                 {isRu ? 'КОЛИЧЕСТВО ГОСТЕЙ' : 'NUMBER OF GUESTS'}
@@ -346,6 +360,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               <input 
                 type="checkbox" 
                 id="terms-checkbox"
+                aria-label={isRu ? 'Принять пользовательское соглашение' : 'Accept user terms'}
                 checked={termsAccepted}
                 onChange={(e) => setTermsAccepted(e.target.checked)}
                 style={{ width: '18px', height: '18px', cursor: 'pointer' }}
@@ -370,7 +385,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               {isRu ? 'Итого:' : 'Total:'} {formatPrice(calculateTotal(), currency, lang)}
             </Typography>
 
-            {/* Способы оплаты  */}
+            {/* Способы оплаты */}
             <Paper 
               sx={{ 
                 p: 3, 

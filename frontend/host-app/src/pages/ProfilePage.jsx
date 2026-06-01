@@ -4,7 +4,7 @@ import axios from 'axios';
 import { 
   Box, Container, Typography, Paper, Tab, Tabs, TextField, 
   Button, Divider, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Chip, Skeleton, Alert, Select, MenuItem, FormControlLabel, Switch, Dialog, DialogTitle, DialogContent 
+  TableContainer, TableHead, TableRow, Chip, Skeleton, Alert, Select, MenuItem, Dialog, DialogTitle, DialogContent 
 } from '@mui/material';
 import { formatPrice } from '../utils/price';
 
@@ -122,7 +122,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const adminTasksRes = await axios.get('http://localhost:3003/api/auth/admin/tasks');
         setAdminTasks(adminTasksRes.data);
 
-        // Загрузка комнат  и всех бронирований для админа
+        // Загрузка комнат и всех бронирований для админа
         const roomsRes = await axios.get('http://localhost:3001/api/rooms');
         setAdminRooms(roomsRes.data);
 
@@ -321,7 +321,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     }
   };
 
-  // пдмин функционал
+  // админ функционал
   const handleUpdateRoomPrice = async (roomId, currentPrice) => {
     const newPrice = prompt(lang === 'RU' ? 'Введите новую цену номера (₽):' : 'Enter new price for the room:', currentPrice);
     if (newPrice === null || isNaN(parseFloat(newPrice))) return;
@@ -464,9 +464,11 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   };
 
   return (
-    <Box sx={{ pt: 22, pb: 10 }}>
+    <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
-        <Typography variant="h2" sx={{ fontFamily: 'Playfair Display', mb: 4 }}>{t.cabinetTitle}</Typography>
+        <Typography variant="h1" sx={{ fontSize: '3rem', fontWeight: 'bold', mb: 4, fontFamily: 'Playfair Display' }}>
+          {t.cabinetTitle}
+        </Typography>
 
         {alert && <Alert severity={alert.type} sx={{ borderRadius: 0, mb: 4 }} onClose={() => setAlert(null)}>{alert.text}</Alert>}
 
@@ -494,7 +496,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         {tabValue === 'profile' && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Box component="form" onSubmit={handleSaveProfile}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.personalData}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {t.personalData}
+              </Typography>
               
               <Box sx={{ 
                 display: 'grid', 
@@ -531,8 +535,12 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         {tabValue === 'balance' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' }, gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-              <Typography variant="h5" sx={{ mb: 2, fontFamily: 'Playfair Display' }}>{t.currentBalance}</Typography>
-              <Typography variant="h2" color="secondary" sx={{ fontWeight: 'bold', mb: 4 }}>{formatPrice(user?.balance, currency, lang)}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 2, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {t.currentBalance}
+              </Typography>
+              <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', mb: 4, color: 'secondary.main' }}>
+                {formatPrice(user?.balance, currency, lang)}
+              </Typography>
               
               <Button variant="contained" onClick={() => setOpenRefillModal(true)} sx={{ bgcolor: '#c1a37f', color: 'white', py: 2, px: 6, borderRadius: 0 }}>
                 {t.btnTopUp}
@@ -540,7 +548,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
             </Paper>
 
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{lang === 'RU' ? 'Карты' : 'Linked Cards'}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {lang === 'RU' ? 'Карты' : 'Linked Cards'}
+              </Typography>
               {cards.map(c => (
                 <Box key={c.id} sx={{ p: 2, mb: 2, border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography>•••• •••• •••• {c.lastFour} ({t.cardLinkedStatus})</Typography>
@@ -563,7 +573,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         {tabValue === 'active' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.activeServicesTitle}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {t.activeServicesTitle}
+              </Typography>
               
               {activeBooking ? (
                 <Box sx={{ p: 4, border: '1px solid rgba(128,128,128,0.2)', mb: 4 }}>
@@ -636,7 +648,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
 
             {/* Статус уборки */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{lang === 'RU' ? 'Запросы на уборку' : 'Cleaning Requests'}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {lang === 'RU' ? 'Запросы на уборку' : 'Cleaning Requests'}
+              </Typography>
               {cleaningStatus.map(req => (
                 <Box key={req.id} sx={{ p: 2, mb: 2, border: '1px solid rgba(128,128,128,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
@@ -688,7 +702,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display' }}>{t.assignedTasksTitle}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {t.assignedTasksTitle}
+              </Typography>
               {employeeTasks.assignedCleanings.length > 0 ? employeeTasks.assignedCleanings.map(task => {
                 const isFreeTask = task.status === 'Pending' && !task.assigned_employee_id;
                 return (
@@ -720,7 +736,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         {/* --- ВКЛАДКА 6: учет постояльцев --- */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
-            <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.guestLoggingTitle}</Typography>
+            <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+              {t.guestLoggingTitle}
+            </Typography>
             <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
               <Table>
                 <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
@@ -769,7 +787,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
                   {lang === 'RU' ? 'ОБЩАЯ ВЫРУЧКА' : 'TOTAL REVENUE'}
                 </Typography>
-                <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'secondary.main', fontFamily: 'Playfair Display' }}>
+                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'secondary.main', fontFamily: 'Playfair Display' }}>
                   {formatPrice(calculateTotalRevenue(), currency, lang)}
                 </Typography>
               </Paper>
@@ -779,7 +797,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                   {lang === 'RU' ? 'ЗАГРУЗКА ОТЕЛЯ' : 'OCCUPANCY RATE'}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+                  <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
                     {calculateOccupancyRate()}%
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -792,7 +810,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
                   {lang === 'RU' ? 'АКТИВНЫЕ ПОСТОЯЛЬЦЫ' : 'ACTIVE GUESTS'}
                 </Typography>
-                <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
                   {adminBookings.filter(b => b.booking_status === 'Confirmed').length}
                 </Typography>
               </Paper>
@@ -801,7 +819,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
                   {lang === 'RU' ? 'ЗАДАЧИ НА УБОРКУ' : 'PENDING CLEANINGS'}
                 </Typography>
-                <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'error.main', fontFamily: 'Playfair Display' }}>
+                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'error.main', fontFamily: 'Playfair Display' }}>
                   {adminTasks.cleaningRequests ? adminTasks.cleaningRequests.filter(r => r.status === 'Pending').length : 0}
                 </Typography>
               </Paper>
@@ -809,7 +827,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
 
             {/* Карточка 1: Управление пользователями */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>{t.userManagementTitle}</Typography>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                {t.userManagementTitle}
+              </Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 300 }}>
                 <Table stickyHeader>
                   <TableHead sx={{ bgcolor: '#002F6C', '& .MuiTableCell-head': { bgcolor: '#002F6C', color: 'white', fontWeight: 'bold' } }}>
@@ -845,7 +865,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
 
             {/* Карточка 2: Управление номерным фондом  */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
                 {lang === 'RU' ? 'Управление отелем (Цены и статусы номеров)' : 'Hotel Rooms Management (Prices & Statuses)'}
               </Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 350 }}>
@@ -899,7 +919,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
 
             {/* Карточка 3: Управление бронированиями и постояльцами */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
-              <Typography variant="h5" sx={{ mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
                 {lang === 'RU' ? 'Управление бронированиями и постояльцами' : 'Stay & Bookings Management'}
               </Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 0, maxHeight: 350 }}>
@@ -990,8 +1010,8 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         onClose={() => setOpenRefillModal(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
+        sx={{
+          '& .MuiPaper-root': { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>

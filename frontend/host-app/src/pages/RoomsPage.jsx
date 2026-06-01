@@ -22,7 +22,6 @@ export default function RoomsPage({ t, currency, lang }) {
   const [category, setCategory] = useState('all');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  
   const [checkDate, setCheckDate] = useState(todayStr);
 
   const [dbRooms, setDbRooms] = useState([]); 
@@ -47,7 +46,6 @@ export default function RoomsPage({ t, currency, lang }) {
       .then(res => setDbRooms(res.data))
       .catch(err => console.error("Ошибка загрузки номеров:", err));
   }, [checkDate]);
-
   useEffect(() => {
     setPage(1);
   }, [searchTerm, category, minPrice, maxPrice, checkDate]);
@@ -71,7 +69,7 @@ export default function RoomsPage({ t, currency, lang }) {
   const pageCount = Math.ceil(filteredCategories.length / itemsPerPage);
   const paginatedCategories = filteredCategories.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  // Вычисление количества оставшихся свободных номеров категории
+  // Вычисление количества оставшихся свободных номеров категории на выбранную дату
   const getFreeRoomsCount = (categoryKey) => {
     const roomsInCat = dbRooms.filter(r => r.category === categoryKey);
     if (roomsInCat.length === 0) return 0;
@@ -95,9 +93,9 @@ export default function RoomsPage({ t, currency, lang }) {
   };
 
   return (
-    <Box sx={{ pt: 22, pb: 10 }}>
+    <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
-        <Typography variant="h2" align="center" sx={{ fontFamily: 'Playfair Display', mb: 6, color: 'text.primary' }}>
+        <Typography variant="h1" align="center" sx={{ fontSize: '3rem', fontWeight: 'bold', fontFamily: 'Playfair Display', mb: 6, color: 'text.primary' }}>
           {t.roomsTitle}
         </Typography>
 
@@ -161,6 +159,7 @@ export default function RoomsPage({ t, currency, lang }) {
                 type="date" 
                 min={todayStr}
                 value={checkDate} 
+                aria-label="Проверить доступность на дату"
                 onChange={(e) => setCheckDate(e.target.value)} 
                 style={{ width: '100%', padding: '8.5px 14px', border: '1px solid rgba(128,128,128,0.2)', fontFamily: 'inherit', background: 'transparent', color: 'inherit', outline: 'none', fontSize: '0.9rem' }} 
               />
@@ -172,13 +171,20 @@ export default function RoomsPage({ t, currency, lang }) {
             const freeRoomsCount = getFreeRoomsCount(cat.id);
             return (
               <Paper key={i} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <CardMedia component="img" image={cat.img} sx={{ height: 350, objectFit: 'cover', borderRadius: 0, mb: 3 }} />
+                <CardMedia 
+                  component="img" 
+                  image={cat.img} 
+                  alt={`Категория номера - ${cat.title}`}
+                  sx={{ height: 350, objectFit: 'cover', borderRadius: 0, mb: 3 }} 
+                />
                 <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1, gap: 1 }}>
-                  <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', fontWeight: 600, minHeight: 60, color: 'text.primary', flex: 1 }}>{cat.title}</Typography>
+                  <Typography variant="h2" sx={{ fontSize: '1.5rem', fontFamily: 'Playfair Display', fontWeight: 600, minHeight: 60, color: 'text.primary', flex: 1 }}>
+                    {cat.title}
+                  </Typography>
                   {getAvailabilityStatus(cat.id)}
                 </Box>
 
-                {/* Вывод количества оставшихся свободных номеров на выбранную дату */}
+                {/* Вывод количества оставшихся свободных номеров на выбранную дат */}
                 {checkDate && (
                   <Typography variant="body2" sx={{ color: freeRoomsCount > 0 ? 'success.main' : 'error.main', fontWeight: 'bold', mb: 2 }}>
                     {lang === 'RU' 
@@ -189,7 +195,9 @@ export default function RoomsPage({ t, currency, lang }) {
 
                 <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary', opacity: 0.8, minHeight: 100, lineHeight: 1.6 }}>{cat.d}</Typography>
                 <Box sx={{ mt: 'auto' }}>
-                  <Typography variant="h5" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{formatPrice(cat.priceRub, currency, lang)}</Typography>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 'bold', mb: 2, color: 'secondary.main' }}>
+                    {formatPrice(cat.priceRub, currency, lang)}
+                  </Typography>
                   <Button variant="contained" fullWidth onClick={() => navigate(`/rooms/${cat.id}`)} sx={{ bgcolor: '#c1a37f', color: 'white', borderRadius: 0, boxShadow: 0, '&:hover': { bgcolor: '#a68a64' } }}>{t.learnMore}</Button>
                 </Box>
               </Paper>
@@ -208,7 +216,7 @@ export default function RoomsPage({ t, currency, lang }) {
               size="large"
               shape="rounded"
               sx={{
-                '& .MuiPaginationItem-root': { borderRadius: 0 } 
+                '& .MuiPaginationItem-root': { borderRadius: 0 }
               }}
             />
           </Box>

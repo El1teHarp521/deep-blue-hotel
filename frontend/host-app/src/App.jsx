@@ -30,32 +30,40 @@ const Footer = ({ t }) => (
     <Container maxWidth="xl">
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr 1fr' }, gap: 8, mb: 6 }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1 }}>{t.footerAbout}</Typography>
-          <Typography variant="body2" sx={{ color: 'grey.500', lineHeight: 1.8 }}>{t.footerAboutText}</Typography>
+          <Typography sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1, color: '#ffffff' }}>
+            {t.footerAbout}
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#cccccc', lineHeight: 1.8 }}>
+            {t.footerAboutText}
+          </Typography>
         </Box>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1 }}>{t.footerContacts}</Typography>
+          <Typography sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1, color: '#ffffff' }}>
+            {t.footerContacts}
+          </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, color: 'grey.500' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, color: '#cccccc' }}>
               <PhoneIcon sx={{ fontSize: 16 }} />
               <Typography variant="body2">+7 999 111 11 12</Typography>
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, color: 'grey.500' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, color: '#cccccc' }}>
               <EmailIcon sx={{ fontSize: 16 }} />
               <Typography variant="body2">DeepBlueSupport@gmail.com</Typography>
             </Box>
           </Box>
         </Box>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1 }}>{t.footerAddress}</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, color: 'grey.500' }}>
+          <Typography sx={{ fontWeight: 'bold', mb: 3, fontSize: '0.9rem', letterSpacing: 1, color: '#ffffff' }}>
+            {t.footerAddress}
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, color: '#cccccc' }}>
             <LocationOnIcon sx={{ fontSize: 16, mt: 0.3 }} />
             <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{t.footerAddressText}</Typography>
           </Box>
         </Box>
       </Box>
       <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', my: 4 }} />
-      <Typography variant="body2" align="center" sx={{ color: 'grey.600' }}>{t.footerCopyright}</Typography>
+      <Typography variant="body2" align="center" sx={{ color: 'grey.500' }}>{t.footerCopyright}</Typography>
     </Container>
   </Box>
 );
@@ -86,12 +94,26 @@ const Header = ({ mode, toggleTheme, lang, setLang, currency, setCurrency, t, se
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', pb: 1, pt: 1.5 }}>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Select value={lang} onChange={(e) => setLang(e.target.value)} variant="standard" disableUnderline sx={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}>
+            <Select 
+              value={lang} 
+              onChange={(e) => setLang(e.target.value)} 
+              variant="standard" 
+              disableUnderline 
+              inputProps={{ 'aria-label': lang === 'RU' ? 'Выбор языка' : 'Select language' }}
+              sx={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}
+            >
               <MenuItem value="RU">RU</MenuItem>
               <MenuItem value="EN">EN</MenuItem>
             </Select>
             <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.2)', my: 0.5 }} />
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value)} variant="standard" disableUnderline sx={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}>
+            <Select 
+              value={currency} 
+              onChange={(e) => setCurrency(e.target.value)} 
+              variant="standard" 
+              disableUnderline 
+              inputProps={{ 'aria-label': lang === 'RU' ? 'Выбор валюты' : 'Select currency' }}
+              sx={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}
+            >
               <MenuItem value="RUB">RUB (₽)</MenuItem>
               <MenuItem value="USD">USD ($)</MenuItem>
               <MenuItem value="AED">AED</MenuItem>
@@ -103,7 +125,12 @@ const Header = ({ mode, toggleTheme, lang, setLang, currency, setCurrency, t, se
           </Typography>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
-            <IconButton onClick={toggleTheme} color="inherit" size="small">
+            <IconButton 
+              onClick={toggleTheme} 
+              color="inherit" 
+              size="small"
+              aria-label={lang === 'RU' ? 'Переключить тему оформления' : 'Toggle theme mode'}
+            >
               {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
             </IconButton>
 

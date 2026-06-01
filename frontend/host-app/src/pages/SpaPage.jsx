@@ -103,26 +103,28 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
   const showPurchaseBtn = user && ['Guest', 'Employee', 'Admin'].includes(user.role);
 
   return (
-    <Box sx={{ pt: 22, pb: 10 }}>
+    <Box component="main" sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Paper sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 0, mb: 10 }}>
-          <CardMedia component="img" height="700" image="/images/service-spa-1.jpg" />
+          <CardMedia component="img" height="700" image="/images/service-spa-1.jpg" alt="Спа-салон отеля DeepBlue Resort" />
         </Paper>
         
         {/* бассейн + баня */}
         <Paper sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 0, mb: 10 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.2fr 1fr' }, gap: 6, alignItems: 'center' }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <CardMedia component="img" image="/images/service-spa-1.jpg" height="350" sx={{ borderRadius: 0 }} />
-              <CardMedia component="img" image="/images/service-spa-2.jpg" height="350" sx={{ borderRadius: 0 }} />
+              <CardMedia component="img" image="/images/service-spa-1.jpg" height="350" alt="Бассейн в термальной зоне SPA" sx={{ borderRadius: 0 }} />
+              <CardMedia component="img" image="/images/service-spa-2.jpg" height="350" alt="Интерьер финской сауны" sx={{ borderRadius: 0 }} />
             </Box>
             <Box sx={{ pl: { lg: 4 } }}>
-              <Typography variant="h3" sx={{ mb: 3, color: 'text.primary', fontFamily: 'Playfair Display' }}>DeepBlue SPA & Бани</Typography>
+              <Typography variant="h1" sx={{ fontSize: '3rem', mb: 3, color: 'text.primary', fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
+                DeepBlue SPA & Бани
+              </Typography>
               <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary', lineHeight: 1.8 }}>
                 {isRu ? 'Погрузитесь в атмосферу термальных источников и традиционных бань курорта. Доступ предоставляется на весь период проживания.' : 'Immerse yourself in thermal pools and saunas. Unlimited access is granted for the entire period of your stay.'}
               </Typography>
               
-              <Typography variant="h5" color="secondary" sx={{ fontWeight: 'bold', mb: 3 }}>
+              <Typography sx={{ fontSize: '1.5rem', fontWeight: 'bold', mb: 3, color: 'secondary.main' }}>
                 {isRu ? 'Бани (на весь период проживания):' : 'Saunas (For the entire stay):'} {formatPrice(7800, currency, lang)}
               </Typography>
 
@@ -150,9 +152,11 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
         <Paper sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 0, mb: 10 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1.3fr' }, alignItems: 'center' }}>
             <Box sx={{ p: { xs: 2, lg: 4 } }}>
-               <Typography variant="h3" gutterBottom sx={{ fontFamily: 'Playfair Display', color: 'text.primary' }}>{t.massageTitle}</Typography>
-               <Typography variant="h4" sx={{ mb: 1 }}>{t.massageSub}</Typography>
-               <Typography variant="h5" color="secondary" sx={{ fontWeight: 'bold', mb: 3 }}>
+               <Typography variant="h2" gutterBottom sx={{ fontSize: '2.5rem', fontFamily: 'Playfair Display', color: 'text.primary', fontWeight: 'bold' }}>
+                 {t.massageTitle}
+               </Typography>
+               <Typography variant="body1" sx={{ fontSize: '1.5rem', fontWeight: 'bold', mb: 1 }}>{t.massageSub}</Typography>
+               <Typography sx={{ fontSize: '1.5rem', fontWeight: 'bold', mb: 3, color: 'secondary.main' }}>
                  {formatPrice(1200, currency, lang)}
                </Typography>
                <Typography sx={{ mb: 4, color: 'text.secondary', lineHeight: 1.8 }}>{t.massageDesc}</Typography>
@@ -168,16 +172,20 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                  </Button>
                )}
             </Box>
-            <CardMedia component="img" image="/images/service-spa-3.jpg" height="550" sx={{ borderRadius: 0 }} />
+            <CardMedia component="img" image="/images/service-spa-3.jpg" height="550" alt="Профессиональный сеанс массажа" sx={{ borderRadius: 0 }} />
           </Box>
         </Paper>
 
-        <Typography variant="h4" align="center" sx={{ mb: 8, color: 'text.primary', fontFamily: 'Playfair Display' }}>{t.specialists}</Typography>
+        <Typography variant="h2" align="center" sx={{ mb: 8, color: 'text.primary', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '2.5rem' }}>
+          {t.specialists}
+        </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
           {t.specialistsList.map((spec, i) => (
             <Paper key={i} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <CardMedia component="img" image={spec.img} sx={{ height: 400, borderRadius: 0, mb: 3, objectFit: 'cover' }} />
-              <Typography variant="h5" sx={{ fontFamily: 'Playfair Display', fontWeight: 600, color: 'text.primary', mb: 1 }}>{spec.name}</Typography>
+              <CardMedia component="img" image={spec.img} alt={`Мастер массажа - ${spec.name}`} sx={{ height: 400, borderRadius: 0, mb: 3, objectFit: 'cover' }} />
+              <Typography variant="h3" sx={{ fontFamily: 'Playfair Display', fontSize: '1.5rem', fontWeight: 600, color: 'text.primary', mb: 1 }}>
+                {spec.name}
+              </Typography>
               <Typography variant="body2" color="secondary" sx={{ fontWeight: 'bold', mb: 2 }}>{spec.age} | {spec.experience}</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>{spec.desc}</Typography>
             </Paper>
@@ -234,6 +242,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                   required
                   min={todayStr}
                   value={massageDate} 
+                  aria-label={isRu ? 'Выбрать дату записи на массаж' : 'Select massage date'}
                   onChange={handleDateChange}
                   style={{ width: '100%', padding: '12px', border: '1px solid #ddd', outline: 'none', background: 'transparent', color: 'inherit' }} 
                 />
