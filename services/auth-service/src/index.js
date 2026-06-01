@@ -22,7 +22,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 
-// кастомный RATE LIMMTER (огран запросов)
+// рейт лиммитер (ограничение запросов) 
 const rateLimits = new Map();
 
 const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
@@ -65,7 +65,7 @@ const handleRefresh = async (req, res, next, refreshToken) => {
 
     // Выписываем новый Access-токен на 15 минут
     const newAccessToken = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role }, 
+      { userId: user.id, email: user.role, role: user.role }, 
       process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', 
       { expiresIn: '15m' }
     );
@@ -113,7 +113,7 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-// настройки swagger OPENAPI 3.0
+// настройки swagger (OPENAPI 3.0)
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
@@ -184,7 +184,7 @@ async function seedAdditionalServices() {
 }
 
 
-// аторизация и регистрация
+// авторизация и регистрация
 
 app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { email, password, firstName, lastName, phone, country } = req.body;
@@ -207,6 +207,7 @@ app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res)
       data: { email, password_hash: passwordHash, first_name: firstName, last_name: lastName, phone, country, role: 'User' }
     });
 
+    //  двух токенов
     const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
     const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
@@ -233,6 +234,7 @@ app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) =>
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Неверный пароль' });
 
+    //  двух токенов
     const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
     const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
@@ -291,7 +293,8 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// связка и отвязка google auth
+
+// связка и отвязка GOOGLE OAUTH
 
 
 app.get('/api/auth/google/url', (req, res) => {
@@ -503,8 +506,7 @@ app.post('/api/auth/bookings/pay-debt', rateLimiter(15, 15 * 60 * 1000), authent
 });
 
 
-// активные услуги и уброки
-
+// активные услуги и уборки
 
 app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
   try {
@@ -555,7 +557,56 @@ app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 
       orderBy: { created_at: 'desc' }
     });
 
-    res.json({ schedules, assignedCleanings: assignedCleanings.map(mapCleaningRequest) });
+    const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
+    const fullName = user ? `${user.first_name} ${user.last_name}`.trim() : '';
+
+    let matchedSpecialistId = null;
+    if (fullName.includes('Алия') && fullName.includes('Шарапова')) matchedSpecialistId = 1;
+    else if (fullName.includes('Карина') && fullName.includes('Воробьева')) matchedSpecialistId = 2;
+    else if (fullName.includes('Даниил') && fullName.includes('Царев')) matchedSpecialistId = 3;
+
+    let massageBookingsRaw = [];
+    if (req.user.role === 'Admin') {
+      massageBookingsRaw = await prisma.massageBookings.findMany({
+        where: { status: 'Confirmed' },
+        orderBy: [{ date: 'asc' }, { time: 'asc' }]
+      });
+    } else if (req.user.role === 'Employee' && matchedSpecialistId !== null) {
+      massageBookingsRaw = await prisma.massageBookings.findMany({
+        where: { specialist_id: matchedSpecialistId, status: 'Confirmed' },
+        orderBy: [{ date: 'asc' }, { time: 'asc' }]
+      });
+    }
+
+    const clientIds = [...new Set(massageBookingsRaw.map(m => m.user_id))];
+    const clients = await prisma.users.findMany({
+      where: { id: { in: clientIds } }
+    });
+
+    const mappedMassages = massageBookingsRaw.map(task => {
+      const client = clients.find(c => c.id === task.user_id);
+      const specialistName = {
+        1: 'Алия Шарапова',
+        2: 'Карина Воробьева',
+        3: 'Даниил Царев'
+      }[task.specialist_id] || 'Неизвестно';
+
+      return {
+        id: task.id,
+        clientName: client ? `${client.first_name} ${client.last_name}` : 'Гость',
+        clientPhone: client ? client.phone : '',
+        date: task.date,
+        time: task.time,
+        specialistName,
+        status: task.status
+      };
+    });
+
+    res.json({ 
+      schedules, 
+      assignedCleanings: assignedCleanings.map(mapCleaningRequest),
+      massageTasks: mappedMassages
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -600,13 +651,17 @@ app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticate
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
     const selectedBookingDate = new Date(date);
     if (isNaN(selectedBookingDate.getTime())) {
       return res.status(400).json({ error: 'Указана некорректная или невалидная дата.' });
     }
 
-    if (selectedBookingDate < today) {
-      return res.status(400).json({ error: 'Вы не можете записаться на массаж на прошедшую дату.' });
+    if (selectedBookingDate < tomorrow) {
+      return res.status(400).json({ error: 'Запись на массаж возможна только начиная со следующего дня.' });
     }
 
     const existingBooking = await prisma.massageBookings.findFirst({
@@ -667,6 +722,47 @@ app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
       orderBy: { date: 'asc' }
     });
     res.json(list);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/auth/massage/my/:id', authenticateToken, async (req, res) => {
+  try {
+    const booking = await prisma.massageBookings.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Запись на массаж не найдена.' });
+    }
+
+    if (booking.user_id !== req.user.userId) {
+      return res.status(403).json({ error: 'Вы не можете отменить чужую запись.' });
+    }
+
+    const cost = 1200;
+
+    const result = await prisma.$transaction([
+      prisma.users.update({
+        where: { id: req.user.userId },
+        data: { balance: { increment: cost } }
+      }),
+      prisma.massageBookings.delete({
+        where: { id: req.params.id }
+      }),
+      prisma.transactions.create({
+        data: {
+          id: crypto.randomUUID(),
+          user_id: req.user.userId,
+          type: 'REFUND',
+          amount: cost,
+          description: 'Возврат средств за отмену сеанса массажа'
+        }
+      })
+    ]);
+
+    res.json({ success: true, message: 'Запись отменена, 1 200 ₽ возвращены на ваш баланс!', newBalance: parseFloat(result[0].balance) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -736,7 +832,8 @@ app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee',
   }
 });
 
-// РАЗДЕЛ 5: администратирование
+
+//администрирование
 
 app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
@@ -800,8 +897,7 @@ app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authen
 });
 
 
-//  доп услуги
-
+// дополнительные услуги и сиддинг 
 
 app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { serviceName, quantity } = req.body;
@@ -817,7 +913,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
     const service = await prisma.additionalServices.findUnique({ where: { name: normalizedServiceName } });
     if (!service) return res.status(404).json({ error: `Услуга "${serviceName}" не найдена в базе данных.` });
 
-    // 1. Находим активное бронирование пользователя
     const activeBooking = await prisma.bookings.findFirst({
       where: { user_id: req.user.userId, booking_status: 'Confirmed' },
       orderBy: { created_at: 'desc' }
@@ -827,7 +922,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
       return res.status(400).json({ error: 'Приобретать дополнительные услуги могут только гости с активным бронированием.' });
     }
 
-    // 2. Находим комнату, привязанную к бронированию
     const room = await prisma.rooms.findFirst({ 
       where: { id: activeBooking.room_id } 
     });
@@ -840,7 +934,7 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
 
     const stayNights = Math.ceil((new Date(activeBooking.check_out) - new Date(activeBooking.check_in)) / (1000 * 60 * 60 * 24)) || 1;
 
-    // 3. блокировка повторных покупок
+    // блокировка повторных покупок
     if (normalizedServiceName !== 'massage' && normalizedServiceName !== 'cyber') {
       
       if (normalizedServiceName !== 'parking') {

@@ -122,7 +122,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const adminTasksRes = await axios.get('http://localhost:3003/api/auth/admin/tasks');
         setAdminTasks(adminTasksRes.data);
 
-        // Загрузка комнат и всех бронирований для админа
         const roomsRes = await axios.get('http://localhost:3001/api/rooms');
         setAdminRooms(roomsRes.data);
 
@@ -139,7 +138,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const employeeTasksRes = await axios.get('http://localhost:3003/api/auth/employee/tasks');
         setEmployeeTasks(employeeTasksRes.data);
 
-        // Получение реального списка постояльцев с сервера
         const guestsRes = await axios.get('http://localhost:3003/api/auth/employee/guests');
         setGuestsLog(guestsRes.data);
       }
@@ -321,7 +319,20 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
     }
   };
 
-  // админ функционал
+  const handleCancelMassage = async (massageId) => {
+    const confirm = window.confirm(lang === 'RU' ? 'Вы действительно хотите отменить запись на массаж? 1 200 ₽ будут возвращены на ваш баланс.' : 'Do you want to cancel this massage session? 1,200 ₽ will be refunded to your balance.');
+    if (!confirm) return;
+    try {
+      const res = await axios.delete(`http://localhost:3003/api/auth/massage/my/${massageId}`);
+      setUser({ ...user, balance: res.data.newBalance });
+      setAlert({ type: 'success', text: res.data.message });
+      loadUserData();
+    } catch (err) {
+      setAlert({ type: 'error', text: err.response?.data?.error || 'Error cancelling massage' });
+    }
+  };
+
+  // пдмин функционал
   const handleUpdateRoomPrice = async (roomId, currentPrice) => {
     const newPrice = prompt(lang === 'RU' ? 'Введите новую цену номера (₽):' : 'Enter new price for the room:', currentPrice);
     if (newPrice === null || isNaN(parseFloat(newPrice))) return;
@@ -492,7 +503,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Tabs>
         </Paper>
 
-        {/* --- ВКЛАДКА 1: данные профиля --- */}
+        {/*  ВКЛАДКА 1: данные профиля  */}
         {tabValue === 'profile' && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Box component="form" onSubmit={handleSaveProfile}>
@@ -531,7 +542,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* --- ВКЛАДКА 2: баланс и карты --- */}
+        {/*  ВКЛАДКА 2: баланс и карты  */}
         {tabValue === 'balance' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' }, gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
@@ -569,7 +580,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- ВКЛАДКА 3: активные услуги --- */}
+        {/*  ВКЛАДКА 3: активные услуги  */}
         {tabValue === 'active' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -630,9 +641,14 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                           </Typography>
                         ))}
                         {myMassages.map(msg => (
-                          <Typography key={msg.id} variant="body2">
-                            ✔ {lang === 'RU' ? `Запись на Массаж (Мастер: ${getSpecialistName(msg.specialist_id)})` : `Massage Session (Master: ${getSpecialistName(msg.specialist_id)})`} — {msg.date} в {msg.time}
-                          </Typography>
+                          <Box key={msg.id} sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="body2">
+                              ✔ {lang === 'RU' ? `Запись на Массаж (Мастер: ${getSpecialistName(msg.specialist_id)})` : `Massage Session (Master: ${getSpecialistName(msg.specialist_id)})`} — {msg.date} в {msg.time}
+                            </Typography>
+                            <Button size="small" color="error" variant="outlined" onClick={() => handleCancelMassage(msg.id)} sx={{ borderRadius: 0, ml: 2 }}>
+                              {lang === 'RU' ? 'Отменить' : 'Cancel'}
+                            </Button>
+                          </Box>
                         ))}
                       </Box>
                     </Box>
@@ -672,7 +688,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/* --- ВКЛАДКА 4: история транзакций --- */}
+        {/* ВКЛАДКА 4: история транзакций  */}
         {tabValue === 'transactions' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <TableContainer component={Paper} sx={{ borderRadius: 0 }}>
             <Table>
@@ -698,7 +714,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/* --- ВКЛАДКА 5: задачи сотрудника --- */}
+        {/*  ВКЛАДКА 5: задачи сотрудника  */}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -730,10 +746,47 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <Typography color="text.secondary">No tasks assigned for today.</Typography>
               )}
             </Paper>
+            {employeeTasks.massageTasks && employeeTasks.massageTasks.length > 0 && (
+              <Paper sx={{ p: 5, borderRadius: 0 }}>
+                <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 3, fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+                  {lang === 'RU' ? 'Расписание сеансов массажа' : 'Massage Sessions Schedule'}
+                </Typography>
+                {employeeTasks.massageTasks.map(msg => (
+                  <Box 
+                    key={msg.id} 
+                    sx={{ 
+                      p: 3, 
+                      mb: 2, 
+                      borderRadius: 0, 
+                      border: '1px solid rgba(128,128,128,0.2)', 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      bgcolor: 'background.paper'
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        {lang === 'RU' ? `Клиент: ${msg.clientName}` : `Client: ${msg.clientName}`}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {lang === 'RU' ? `Дата: ${msg.date} | Время: ${msg.time}` : `Date: ${msg.date} | Time: ${msg.time}`}
+                      </Typography>
+                      {user.role === 'Admin' && (
+                        <Typography variant="caption" sx={{ color: 'secondary.main', display: 'block', mt: 0.5 }}>
+                          {lang === 'RU' ? `Мастер: ${msg.specialistName}` : `Therapist: ${msg.specialistName}`}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip label={lang === 'RU' ? 'Подтверждено' : 'Confirmed'} color="success" sx={{ borderRadius: 0 }} />
+                  </Box>
+                ))}
+              </Paper>
+            )}
           </Box>
         )}
 
-        {/* --- ВКЛАДКА 6: учет постояльцев --- */}
+        {/*  ВКЛАДКА 6: учет постояльцев  */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
@@ -778,7 +831,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/* --- ВКЛАДКА 7: админ панель --- */}
+        {/*  ВКЛАДКА 7: админ панель  */}
         {tabValue === 'admin' && user?.role === 'Admin' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             {/* Аналитический Дашборд отеля */}
@@ -849,7 +902,13 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                         <TableCell sx={{ fontWeight: 'bold' }}>{formatPrice(u.balance, currency, lang)}</TableCell>
                         <TableCell><Chip label={u.role} color="primary" sx={{ borderRadius: 0 }} /></TableCell>
                         <TableCell>
-                          <Select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)} size="small" sx={{ borderRadius: 0, minWidth: 150 }}>
+                          <Select 
+                            value={u.role} 
+                            onChange={(e) => handleRoleChange(u.id, e.target.value)} 
+                            size="small" 
+                            inputProps={{ 'aria-label': 'Изменить роль пользователя' }}
+                            sx={{ borderRadius: 0, minWidth: 150 }}
+                          >
                             <MenuItem value="User">User</MenuItem>
                             <MenuItem value="Guest">Guest</MenuItem>
                             <MenuItem value="Employee">Employee</MenuItem>
@@ -903,6 +962,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                               value={room.status} 
                               onChange={(e) => handleUpdateRoomStatus(room.id, e.target.value)} 
                               size="small" 
+                              inputProps={{ 'aria-label': 'Изменить статус номера' }}
                               sx={{ borderRadius: 0, minWidth: 120 }}
                             >
                               <MenuItem value="Available">{lang === 'RU' ? 'Свободен' : 'Available'}</MenuItem>
@@ -1032,7 +1092,13 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                   <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                     {lang === 'RU' ? 'СПОСОБ ОПЛАТЫ' : 'PAYMENT METHOD'}
                   </Typography>
-                  <Select fullWidth value={useLinkedCard} onChange={(e) => setUseLinkedCard(e.target.value)} sx={{ borderRadius: 0 }}>
+                  <Select 
+                    fullWidth 
+                    value={useLinkedCard} 
+                    onChange={(e) => setUseLinkedCard(e.target.value)} 
+                    inputProps={{ 'aria-label': 'Выбрать способ оплаты' }}
+                    sx={{ borderRadius: 0 }}
+                  >
                     <MenuItem value={true}>{lang === 'RU' ? `Привязанная карта (•••• ${cards[0].lastFour})` : `Linked Card (•••• ${cards[0].lastFour})`}</MenuItem>
                     <MenuItem value={false}>{lang === 'RU' ? 'Использовать другую карту' : 'Use another card'}</MenuItem>
                   </Select>
