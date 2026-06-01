@@ -16,26 +16,67 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Мидлвар авторизации
-const authenticateToken = (req, res, next) => {
-  const token = req.cookies.deepblue_session;
-  if (!token) return res.status(401).json({ error: 'Неавторизован' });
+
+const handleRefresh = async (req, res, next, refreshToken) => {
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Сессия истекла. Пожалуйста, авторизуйтесь заново.' });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026');
+    const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026');
+    const user = await prisma.users.findUnique({ where: { id: decodedRefresh.userId } });
+
+    if (!user || user.is_blocked) {
+      return res.status(403).json({ error: 'Пользователь не найден или заблокирован.' });
+    }
+
+    const newAccessToken = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role }, 
+      process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', 
+      { expiresIn: '15m' }
+    );
+
+    res.cookie('deepblue_access', newAccessToken, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production', 
+      maxAge: 15 * 60 * 1000, 
+      sameSite: 'lax' 
+    });
+
+    req.user = { userId: user.id, email: user.email, role: user.role };
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Необходима повторная авторизация.' });
+  }
+};
+
+const authenticateToken = (req, res, next) => {
+  const accessToken = req.cookies.deepblue_access;
+  const refreshToken = req.cookies.deepblue_refresh;
+
+  if (!accessToken) {
+    return handleRefresh(req, res, next, refreshToken);
+  }
+
+  try {
+    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026');
     req.user = decoded;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return handleRefresh(req, res, next, refreshToken);
+    }
     return res.status(403).json({ error: 'Сессия недействительна' });
   }
 };
 
-// --- наполнение бд реальными номерами ---
+
 app.get('/api/rooms/seed', async (req, res) => {
   try {
     await prisma.rooms.deleteMany();
     const roomsToCreate = [];
 
+    // Стандарт: с 210 по 320 (Цена: 15 000 ₽)
     for (let i = 210; i <= 320; i++) {
       roomsToCreate.push({
         id: crypto.randomUUID(),
@@ -46,6 +87,7 @@ app.get('/api/rooms/seed', async (req, res) => {
       });
     }
 
+    // Бизнес: с 421 по 470 (Цена: 34 000 ₽)
     for (let i = 421; i <= 470; i++) {
       roomsToCreate.push({
         id: crypto.randomUUID(),
@@ -56,6 +98,7 @@ app.get('/api/rooms/seed', async (req, res) => {
       });
     }
 
+    // Люкс: с 560 по 607 (Цена: 67 000 ₽)
     for (let i = 560; i <= 607; i++) {
       roomsToCreate.push({
         id: crypto.randomUUID(),
@@ -66,6 +109,7 @@ app.get('/api/rooms/seed', async (req, res) => {
       });
     }
 
+    // Пентхаус: 1 номер (№701, Цена: 152 000 ₽)
     roomsToCreate.push({
       id: crypto.randomUUID(),
       room_number: '701',
@@ -81,7 +125,7 @@ app.get('/api/rooms/seed', async (req, res) => {
   }
 });
 
-// создание бронирования
+// бронирование
 app.post('/api/bookings', authenticateToken, async (req, res) => {
   const { category, checkIn, checkOut, payNow, guestsCount } = req.body;
 
@@ -114,7 +158,6 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     });
   }
 
-  // Вычисляем количество ночей
   const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
   try {
@@ -168,10 +211,6 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     let newBalance = parseFloat(user.balance);
 
     if (payNow) {
-      if (newBalance < finalPrice) {
-        return res.status(400).json({ error: 'Недостаточно средств на балансе.' });
-      }
-      newBalance -= finalPrice;
       paymentStatus = 'Paid';
     } else {
       newBalance -= finalPrice;
@@ -202,7 +241,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
           type: 'BOOKING',
           amount: finalPrice,
           description: payNow 
-            ? `Оплата номера №${selectedRoom.room_number} (${nights} ноч.)` 
+            ? `Оплата картой номера №${selectedRoom.room_number} (${nights} ноч.)` 
             : `Резерв номера №${selectedRoom.room_number} в долг (${nights} ноч.)`
         }
       })
@@ -211,7 +250,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     res.status(201).json({ 
       success: true, 
       message: payNow 
-        ? `Номер №${selectedRoom.room_number} успешно забронирован и оплачен на ${nights} ночей!` 
+        ? `Номер №${selectedRoom.room_number} успешно забронирован и оплачен картой на ${nights} ночей!` 
         : `Номер №${selectedRoom.room_number} успешно зарезервирован на ${nights} ночей в долг!`,
       booking: result[0],
       newBalance
@@ -222,7 +261,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// --- динамическая проверка занятости номеров ---
+// номера с автоматической проверкой занятости
 app.get('/api/rooms', async (req, res) => {
   const { date } = req.query;
 
@@ -253,7 +292,7 @@ app.get('/api/rooms', async (req, res) => {
   }
 });
 
-// активное бронирование
+// активное бронирование постояльца
 app.get('/api/bookings/active', authenticateToken, async (req, res) => {
   try {
     const activeBooking = await prisma.bookings.findFirst({
@@ -285,7 +324,8 @@ app.get('/api/bookings/active', authenticateToken, async (req, res) => {
 });
 
 
-// АДМИНИСТРАТИВНЫЕ РОУТЫ (ADMIN ONLY)
+
+// Админ роуты
 
 
 // 1. Получить все бронирования отеля с именами гостей и номерами комнат
@@ -343,7 +383,7 @@ app.put('/api/admin/rooms/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// 3. Выселить постояльца / Снять бронь
+// 3. Выселить постояльца / Снять бронь (изменение статуса бронирования)
 app.put('/api/admin/bookings/:id/status', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Доступ запрещен. Требуются права Администратора.' });

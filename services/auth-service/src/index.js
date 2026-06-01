@@ -22,9 +22,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 
-// ========================================================
-// rate limmiter  (ОГРАНИЧЕНИЕ ЗАПРОСОВ)
-// ========================================================
+// кастомный RATE LIMMTER (огран запросов)
 const rateLimits = new Map();
 
 const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
@@ -50,27 +48,25 @@ const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
 };
 
 
-// ========================================================
-//  мидлвары двух токенов
-// ========================================================
+// мидлавры двух токенов (ACCESS + REFRESH)
 
 const handleRefresh = async (req, res, next, refreshToken) => {
   if (!refreshToken) {
-    return res.status(401).json({ error: 'Сессия истекла. Пожалуйста, авторизуйтесь снова.' });
+    return res.status(401).json({ error: 'Сессия истекла. Пожалуйста, авторизуйтесь заново.' });
   }
 
   try {
-    const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key');
+    const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026');
     const user = await prisma.users.findUnique({ where: { id: decodedRefresh.userId } });
 
     if (!user || user.is_blocked) {
       return res.status(403).json({ error: 'Пользователь не найден или заблокирован.' });
     }
 
-    //  новый Access-токен на 15 минут
+    // Выписываем новый Access-токен на 15 минут
     const newAccessToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role }, 
-      process.env.JWT_SECRET, 
+      process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', 
       { expiresIn: '15m' }
     );
 
@@ -97,7 +93,7 @@ const authenticateToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026');
     req.user = decoded;
     next();
   } catch (error) {
@@ -117,7 +113,7 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-// настройки swagger  (OPENAPI 3.0) 
+// настройки swagger OPENAPI 3.0
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
@@ -150,7 +146,6 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone) => /^\+?[1-9]\d{1,14}$/.test(phone) && phone.length >= 10;
 
-//маппинг номеров
 const mapCleaningRequest = (req) => {
   const roomMap = {
     '00000000-0000-0000-0000-000000000101': { number: '101', type: 'Стандарт' },
@@ -166,7 +161,6 @@ const mapCleaningRequest = (req) => {
   };
 };
 
-// автоматический сиддинг доп.услуг в базу данных
 async function seedAdditionalServices() {
   try {
     const count = await prisma.additionalServices.count();
@@ -190,9 +184,7 @@ async function seedAdditionalServices() {
 }
 
 
-// ==========================================
-// РАЗДЕЛ 1: авторизация и регистрация (AUTH)
-// ==========================================
+// аторизация и регистрация
 
 app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { email, password, firstName, lastName, phone, country } = req.body;
@@ -215,9 +207,8 @@ app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res)
       data: { email, password_hash: passwordHash, first_name: firstName, last_name: lastName, phone, country, role: 'User' }
     });
 
-    // Генерация двух токенов
-    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key', { expiresIn: '7d' });
+    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
     res.cookie('deepblue_access', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000, sameSite: 'lax' });
     res.cookie('deepblue_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
@@ -242,9 +233,8 @@ app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) =>
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Неверный пароль' });
 
-    // Генерация двух токенов
-    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key', { expiresIn: '7d' });
+    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
     res.cookie('deepblue_access', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000, sameSite: 'lax' });
     res.cookie('deepblue_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
@@ -301,10 +291,8 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// связка и отвязка google auth
 
-// ========================================================
-// РАЗДЕЛ 2: связка и отвязка GOOGLE OAUTH
-// ========================================================
 
 app.get('/api/auth/google/url', (req, res) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -343,7 +331,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     const { id: googleId, email: googleEmail, name } = googleUserResponse.data;
 
     if (tokenFromCookie) {
-      const decoded = jwt.verify(tokenFromCookie, process.env.JWT_SECRET);
+      const decoded = jwt.verify(tokenFromCookie, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026');
       const googleIdInUse = await prisma.users.findUnique({ where: { google_id: googleId } });
       if (googleIdInUse && googleIdInUse.id !== decoded.userId) {
         return res.status(400).send('Этот Google-аккаунт уже привязан к другому пользователю!');
@@ -387,8 +375,8 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
     if (user.is_blocked) return res.status(403).send('Ваш аккаунт заблокирован');
 
-    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key', { expiresIn: '7d' });
+    const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_key_2026', { expiresIn: '7d' });
 
     res.cookie('deepblue_access', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000, sameSite: 'lax' });
     res.cookie('deepblue_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
@@ -412,9 +400,7 @@ app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
 });
 
 
-// ========================================================
-// РАЗДЕЛ 3: карты и платежи (PAYMENTS)
-// ========================================================
+// карты и платежи
 
 app.post('/api/auth/cards', rateLimiter(20, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { cardNumber, expireDate } = req.body;
@@ -517,9 +503,8 @@ app.post('/api/auth/bookings/pay-debt', rateLimiter(15, 15 * 60 * 1000), authent
 });
 
 
-// ========================================================
-// РАЗДЕЛ 4: активные услуги (GUEST & EMPLOYEE)
-// ========================================================
+// активные услуги и уброки
+
 
 app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
   try {
@@ -612,7 +597,6 @@ app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticate
   const { specialistId, date, time } = req.body;
 
   try {
-    // Валидация прошедших дат для массажа
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -752,10 +736,7 @@ app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee',
   }
 });
 
-
-// ========================================================
-// РАЗДЕЛ 5: администрирование (ADMIN & CRUD)
-// ========================================================
+// РАЗДЕЛ 5: администратирование
 
 app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
@@ -819,9 +800,8 @@ app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authen
 });
 
 
-// ========================================================
-// РАЗДЕЛ 6: дополнительные услуги (SERVICES)
-// ========================================================
+//  доп услуги
+
 
 app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { serviceName, quantity } = req.body;
@@ -831,7 +811,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
     return res.status(400).json({ error: 'Количество должно быть больше нуля.' });
   }
 
-  // Нормализуем имя услуги для гарантированного совпадения
   const normalizedServiceName = serviceName ? serviceName.trim().toLowerCase() : '';
 
   try {
