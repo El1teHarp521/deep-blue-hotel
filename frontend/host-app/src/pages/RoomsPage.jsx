@@ -67,9 +67,11 @@ export default function RoomsPage({ t, currency, lang }) {
     return matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice;
   });
 
+  // Вычисление количества страниц пагинации
   const pageCount = Math.ceil(filteredCategories.length / itemsPerPage);
   const paginatedCategories = filteredCategories.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
+  // Вычисление количества оставшихся свободных номеров категории
   const getFreeRoomsCount = (categoryKey) => {
     const roomsInCat = dbRooms.filter(r => r.category === categoryKey);
     if (roomsInCat.length === 0) return 0;
@@ -103,7 +105,17 @@ export default function RoomsPage({ t, currency, lang }) {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.5fr 1fr 1fr 1fr 1fr' }, gap: 3, alignItems: 'end' }}>
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>ПОИСК ПО НАЗВАНИЮ</Typography>
-              <TextField fullWidth placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} variant="outlined" size="small" InputProps={{ sx: { borderRadius: 0 } }} />
+              <TextField 
+                fullWidth 
+                placeholder={t.searchPlaceholder} 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                variant="outlined" 
+                size="small" 
+                sx={{
+                  '& .MuiOutlinedInput-root': { borderRadius: 0 }
+                }} 
+              />
             </Box>
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.categoryLabel}</Typography>
@@ -117,11 +129,31 @@ export default function RoomsPage({ t, currency, lang }) {
             </Box>
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.priceFrom} ($)</Typography>
-              <TextField fullWidth type="number" placeholder="e.g. 100" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} size="small" InputProps={{ sx: { borderRadius: 0 } }} />
+              <TextField 
+                fullWidth 
+                type="number" 
+                placeholder="e.g. 100" 
+                value={minPrice} 
+                onChange={(e) => setMinPrice(e.target.value)} 
+                size="small" 
+                sx={{
+                  '& .MuiOutlinedInput-root': { borderRadius: 0 }
+                }} 
+              />
             </Box>
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.priceTo} ($)</Typography>
-              <TextField fullWidth type="number" placeholder="e.g. 2000" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} size="small" InputProps={{ sx: { borderRadius: 0 } }} />
+              <TextField 
+                fullWidth 
+                type="number" 
+                placeholder="e.g. 2000" 
+                value={maxPrice} 
+                onChange={(e) => setMaxPrice(e.target.value)} 
+                size="small" 
+                sx={{
+                  '& .MuiOutlinedInput-root': { borderRadius: 0 }
+                }} 
+              />
             </Box>
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>ПРОВЕРИТЬ НА ДАТУ</Typography>
@@ -135,7 +167,6 @@ export default function RoomsPage({ t, currency, lang }) {
             </Box>
           </Box>
         </Paper>
-
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr' }, gap: 4 }}>
           {paginatedCategories.map((cat, i) => {
             const freeRoomsCount = getFreeRoomsCount(cat.id);
@@ -177,7 +208,7 @@ export default function RoomsPage({ t, currency, lang }) {
               size="large"
               shape="rounded"
               sx={{
-                '& .MuiPaginationItem-root': { borderRadius: 0 }
+                '& .MuiPaginationItem-root': { borderRadius: 0 } 
               }}
             />
           </Box>

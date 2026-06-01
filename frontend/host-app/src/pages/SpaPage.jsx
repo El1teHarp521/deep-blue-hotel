@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Box, Container, Typography, CardMedia, Button, Divider, Paper, 
-  Table, TableBody, TableCell, TableContainer, TableRow, Dialog, DialogTitle, DialogContent, Stack, MenuItem, Select, Alert 
+  Table, TableBody, TableCell, TableContainer, TableRow, Dialog, DialogTitle, DialogContent, MenuItem, Select, Alert 
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -25,7 +25,6 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
   };
 
   const todayStr = getTodayDateString();
-
   const [massageDate, setMassageDate] = useState(todayStr);
   const [massageTime, setMassageTime] = useState('14:00');
   const [selectedSpecialist, setSelectedSpecialist] = useState(1);
@@ -191,8 +190,8 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
         onClose={() => setOpenMassageModal(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
+        sx={{
+          '& .MuiPaper-root': { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>

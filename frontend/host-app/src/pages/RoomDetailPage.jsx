@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Box, Container, Typography, CardMedia, Button, Paper, 
-  Divider, IconButton, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, Stack, Alert, TextField, MenuItem, Select
+  Divider, IconButton, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, Alert, TextField, MenuItem, Select
 } from '@mui/material';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
@@ -132,7 +132,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
     setOpenCheckout(false);
     setOpenPaymentModal(true);
-  }
+  };
   const handlePayLaterClick = () => {
     setBookingAlert(null);
 
@@ -235,7 +235,13 @@ export default function RoomDetailPage({ t, currency, lang }) {
                 {details.included.map((item, idx) => (
                   <ListItem key={idx} disablePadding sx={{ py: 1.5 }}>
                     <CheckIcon sx={{ color: 'secondary.main', mr: 2 }} />
-                    <ListItemText primary={item} primaryTypographyProps={{ style: { fontWeight: 600, fontSize: '1rem', color: 'text.primary' } }} />
+                    <ListItemText 
+                      primary={
+                        <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
+                          {item}
+                        </Typography>
+                      } 
+                    />
                   </ListItem>
                 ))}
               </List>
@@ -268,8 +274,8 @@ export default function RoomDetailPage({ t, currency, lang }) {
         onClose={() => setOpenCheckout(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
+        sx={{
+          '& .MuiPaper-root': { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
@@ -316,7 +322,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               />
             </Box>
 
-            {/* Выбор количества человек */}
+            {/* Выбор количества человек*/}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                 {isRu ? 'КОЛИЧЕСТВО ГОСТЕЙ' : 'NUMBER OF GUESTS'}
@@ -364,7 +370,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               {isRu ? 'Итого:' : 'Total:'} {formatPrice(calculateTotal(), currency, lang)}
             </Typography>
 
-            {/* Способы оплаты */}
+            {/* Способы оплаты  */}
             <Paper 
               sx={{ 
                 p: 3, 
@@ -376,7 +382,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               }} 
               onClick={handlePayNowClick}
             >
-              <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
                 <AccountBalanceWalletIcon sx={{ color: 'secondary.main', fontSize: 30 }} />
                 <Box>
                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
@@ -386,7 +392,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
                     {isRu ? 'Списание средств с баланса аккаунта' : 'Deduct from your account balance'}
                   </Typography>
                 </Box>
-              </Stack>
+              </Box>
             </Paper>
 
             <Paper 
@@ -400,7 +406,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               }} 
               onClick={handlePayLaterClick}
             >
-              <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
                 <CreditCardIcon sx={{ color: '#c1a37f', fontSize: 30 }} />
                 <Box>
                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
@@ -410,21 +416,21 @@ export default function RoomDetailPage({ t, currency, lang }) {
                     {isRu ? 'Зарезервировать в долг (оплата позже)' : 'Reserve with debt (unpaid balance)'}
                   </Typography>
                 </Box>
-              </Stack>
+              </Box>
             </Paper>
 
           </Box>
         </DialogContent>
       </Dialog>
 
-      {/* Второе модальное окно: Оплата картой при бронировании*/}
+      {/* Второе модальное окно: Оплата картой при бронировании */}
       <Dialog 
         open={openPaymentModal} 
         onClose={() => setOpenPaymentModal(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
+        sx={{
+          '& .MuiPaper-root': { borderRadius: 0, p: 4, bgcolor: 'background.paper', border: '1px solid rgba(128,128,128,0.2)' }
         }}
       >
         <DialogTitle sx={{ textAlign: 'center', fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '1.8rem', pb: 2 }}>
