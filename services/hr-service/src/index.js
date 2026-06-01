@@ -3,6 +3,7 @@ const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -11,17 +12,18 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// Оптимизированные настройки Swagger (работают на любых ОС)
 const swaggerOptions = {
     swaggerDefinition: {
         openapi: '3.0.0',
         info: {
             title: 'Deep Blue HR API',
             version: '1.0.0',
-            description: 'API для работы с персоналом и рабочими графиками',
+            description: 'API для работы с персоналом и рабочими графиками в DeepBlue Resort',
         },
         servers: [{ url: 'http://localhost:3002' }],
     },
-    apis: ['./src/index.js'],
+    apis: [path.join(__dirname, 'index.js')],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
@@ -42,6 +44,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *     responses:
  *       200:
  *         description: Список смен успешно получен
+ *       404:
+ *         description: Сотрудник не найден в системе
+ *       500:
+ *         description: Ошибка сервера
  */
 app.get('/api/schedule/:userId', async (req, res) => {
     try {
@@ -60,4 +66,4 @@ app.get('/api/schedule/:userId', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => console.log(`💼 HR API + Swagger: http://localhost:${PORT}/api-docs`));
+app.listen(PORT, () => console.log(`💼 HR API + Swagger запущен: http://localhost:${PORT}/api-docs`));
