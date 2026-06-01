@@ -11,6 +11,9 @@ npx prisma generate
 
 # Запуск в режиме разработки
 npm run dev
+
+#SWAGGER
+http://localhost:3001/api/docs/
 ```
 
 ### HR Service (Сервис персонала и расписания)
@@ -27,6 +30,8 @@ npx prisma generate
 # Запуск в режиме разработки
 npm run dev
 
+#SWAGGER
+http://localhost:3002/api/docs/
 ```
 ### Auth Service (Сервис авторизации)
 ```
@@ -44,6 +49,9 @@ npx prisma generate
 
 # Запуск в режиме разработки
 npm run dev
+
+#SWAGGER
+http://localhost:3003/api/docs/
 ```
 
 ### React (Фронтэнд)
