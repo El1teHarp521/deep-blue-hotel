@@ -53,6 +53,9 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
   const [adminRooms, setAdminRooms] = useState([]);
   const [adminBookings, setAdminBookings] = useState([]);
 
+  // Стейт для хранения детальной аналитики дашборда
+  const [dashboardStats, setDashboardStats] = useState(null);
+
   const inputStyle = {
     '& .MuiOutlinedInput-root': { borderRadius: 0 }
   };
@@ -67,7 +70,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         allowedTabs.push('employee_tasks', 'guests_log');
       }
       if (user.role === 'Admin') {
-        allowedTabs.push('admin');
+        allowedTabs.push('admin', 'dashboard');
       }
 
       if (!allowedTabs.includes(tabValue)) {
@@ -128,6 +131,10 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
 
         const bookingsRes = await axios.get('http://localhost:3001/api/admin/bookings');
         setAdminBookings(bookingsRes.data);
+
+        // Загрузка детальной аналитики дашборда
+        const statsRes = await axios.get('http://localhost:3003/api/auth/admin/dashboard-stats');
+        setDashboardStats(statsRes.data);
       }
 
       if (user.role === 'Guest' || user.role === 'Admin') {
@@ -139,7 +146,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
         const employeeTasksRes = await axios.get('http://localhost:3003/api/auth/employee/tasks');
         setEmployeeTasks(employeeTasksRes.data);
 
-        // Получение реального списка постояльцев с сервера
         const guestsRes = await axios.get('http://localhost:3003/api/auth/employee/guests');
         setGuestsLog(guestsRes.data);
       }
@@ -518,6 +524,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
             {(user?.role === 'Guest' || user?.role === 'Admin') && <Tab label={t.tabHistory} value="transactions" sx={{ fontWeight: 'bold' }} />}
             {(user?.role === 'Employee' || user?.role === 'Admin') && <Tab label={t.tabEmployee} value="employee_tasks" sx={{ fontWeight: 'bold' }} />}
             {(user?.role === 'Employee' || user?.role === 'Admin') && <Tab label={t.tabGuests} value="guests_log" sx={{ fontWeight: 'bold' }} />}
+            {user?.role === 'Admin' && <Tab label={lang === 'RU' ? 'Дашборд аналитики' : 'Analytics Dashboard'} value="dashboard" sx={{ fontWeight: 'bold' }} />}
             {user?.role === 'Admin' && <Tab label={t.tabAdmin} value="admin" sx={{ fontWeight: 'bold' }} />}
           </Tabs>
         </Paper>
@@ -539,8 +546,6 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
                 <TextField fullWidth label={lang === 'RU' ? 'Имя' : 'First Name'} value={profileData.firstName} onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })} sx={inputStyle} />
                 <TextField fullWidth label={lang === 'RU' ? 'Фамилия' : 'Last Name'} value={profileData.lastName} onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })} sx={inputStyle} />
                 <TextField fullWidth label={lang === 'RU' ? 'Телефон' : 'Phone'} value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} sx={inputStyle} />
-                
-                {/* выбор страны из выпадающего списка */}
                 <TextField 
                   select
                   fullWidth 
@@ -617,7 +622,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/*  ВКЛАДКА 3: активные услуги  */}
+        {/* ВКЛАДКА 3: активные услуги  */}
         {tabValue === 'active' && (user?.role === 'Guest' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -751,7 +756,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </TableContainer>
         )}
 
-        {/*  ВКЛАДКА 5: задачи сотрудника */}
+        {/*  ВКЛАДКА 5: задачи сотрудника  */}
         {tabValue === 'employee_tasks' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             <Paper sx={{ p: 5, borderRadius: 0 }}>
@@ -823,7 +828,7 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Box>
         )}
 
-        {/*  ВКЛАДКА 6: учет постояльцев  */}
+        {/* ВКЛАДКА 6: учет постояльцев  */}
         {tabValue === 'guests_log' && (user?.role === 'Employee' || user?.role === 'Admin') && (
           <Paper sx={{ p: 5, borderRadius: 0 }}>
             <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
@@ -868,53 +873,188 @@ export default function ProfilePage({ t, currency, lang, user, setUser }) {
           </Paper>
         )}
 
-        {/*  ВКЛАДКА 7: админ панель  */}
-        {tabValue === 'admin' && user?.role === 'Admin' && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
-            {/* Аналитический Дашборд отеля */}
+        {/*  дашборд аналитки */}
+        {tabValue === 'dashboard' && user?.role === 'Admin' && dashboardStats && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 4 }}>
+            
+            {/* Ряд 1: Главные KPI Карточки */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
-              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'ОБЩАЯ ВЫРУЧКА' : 'TOTAL REVENUE'}
+              {/* Карточка 1: Выручка  */}
+              <Paper sx={{ p: 4, borderRadius: 0, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#c1a37f', letterSpacing: 1.5, display: 'block', mb: 1.5 }}>
+                  {lang === 'RU' ? 'ОБЩИЙ ДОХОД ОТЕЛЯ' : 'HOTEL TOTAL REVENUE'}
                 </Typography>
-                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'secondary.main', fontFamily: 'Playfair Display' }}>
-                  {formatPrice(calculateTotalRevenue(), currency, lang)}
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#ffffff', fontFamily: 'Playfair Display', mb: 1 }}>
+                  {formatPrice(dashboardStats.revenue.total, currency, lang)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                  {lang === 'RU' ? `Номера: ${formatPrice(dashboardStats.revenue.bookings, currency, lang)} | Услуги: ${formatPrice(dashboardStats.revenue.services, currency, lang)}` : `Rooms: ${formatPrice(dashboardStats.revenue.bookings, currency, lang)} | Services: ${formatPrice(dashboardStats.revenue.services, currency, lang)}`}
                 </Typography>
               </Paper>
 
-              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'ЗАГРУЗКА ОТЕЛЯ' : 'OCCUPANCY RATE'}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+              {/* Карточка 2: Круговой датчик загрузки */}
+              <Paper sx={{ p: 4, borderRadius: 0, bgcolor: '#111827', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'grey.400', letterSpacing: 1.5, display: 'block', mb: 1 }}>
+                    {lang === 'RU' ? 'ЗАГРУЗКА НОМЕРОВ' : 'OCCUPANCY RATE'}
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ffffff', fontFamily: 'Playfair Display' }}>
                     {calculateOccupancyRate()}%
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {lang === 'RU' ? `(${adminRooms.filter(r => r.isOccupied).length} из ${adminRooms.length} ном.)` : `(${adminRooms.filter(r => r.isOccupied).length} of ${adminRooms.length} rms)`}
+                  <Typography variant="caption" sx={{ color: 'grey.500', mt: 1, display: 'block' }}>
+                    {lang === 'RU' ? `${dashboardStats.roomStats.occupied} из ${dashboardStats.roomStats.total} забронировано` : `${dashboardStats.roomStats.occupied} of ${dashboardStats.roomStats.total} rooms booked`}
                   </Typography>
+                </Box>
+                {/* Круговой SVG-индикатор */}
+                <Box sx={{ position: 'relative', width: 80, height: 80 }}>
+                  <svg width="80" height="80" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                    <circle 
+                      cx="50" cy="50" r="40" fill="none" stroke="#ff5e97" strokeWidth="8" 
+                      strokeDasharray="251.2"
+                      strokeDashoffset={251.2 - (251.2 * calculateOccupancyRate()) / 100}
+                      strokeLinecap="round"
+                      transform="rotate(-90 50 50)"
+                    />
+                  </svg>
                 </Box>
               </Paper>
 
-              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'АКТИВНЫЕ ПОСТОЯЛЬЦЫ' : 'ACTIVE GUESTS'}
+              {/* Карточка 3: Активные проживающие */}
+              <Paper sx={{ p: 4, borderRadius: 0, bgcolor: '#111827', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'grey.400', letterSpacing: 1.5, display: 'block', mb: 1.5 }}>
+                  {lang === 'RU' ? 'АКТИВНЫЕ ГОСТИ' : 'ACTIVE INHOUSE GUESTS'}
                 </Typography>
-                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'primary.main', fontFamily: 'Playfair Display' }}>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#10b981', fontFamily: 'Playfair Display', mb: 1 }}>
                   {adminBookings.filter(b => b.booking_status === 'Confirmed').length}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                  {lang === 'RU' ? 'Проживают в номерах отеля в данный момент' : 'Currently staying in hotel rooms right now'}
                 </Typography>
               </Paper>
 
-              <Paper sx={{ p: 4, borderRadius: 0, border: '1px solid rgba(128,128,128,0.2)', bgcolor: 'background.paper' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: 1.5, display: 'block', mb: 1 }}>
-                  {lang === 'RU' ? 'ЗАДАЧИ НА УБОРКУ' : 'PENDING CLEANINGS'}
+              {/* Карточка 4: Счета пользователей */}
+              <Paper sx={{ p: 4, borderRadius: 0, bgcolor: '#111827', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'grey.400', letterSpacing: 1.5, display: 'block', mb: 1.5 }}>
+                  {lang === 'RU' ? 'СРЕДСТВА НА СЧЕТАХ' : 'TOTAL USER BALANCES'}
                 </Typography>
-                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'error.main', fontFamily: 'Playfair Display' }}>
-                  {adminTasks.cleaningRequests ? adminTasks.cleaningRequests.filter(r => r.status === 'Pending').length : 0}
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#c1a37f', fontFamily: 'Playfair Display', mb: 1 }}>
+                  {formatPrice(dashboardStats.revenue.refills, currency, lang)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                  {lang === 'RU' ? 'Суммарный виртуальный баланс всех клиентов' : 'Accumulated virtual balance of all accounts'}
                 </Typography>
               </Paper>
             </Box>
 
+            {/* Ряд 2: Графики и Распределение услуг */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.8fr 1.2fr' }, gap: 4 }}>
+              
+              {/* Левый блок: График доходов (SVG Area Chart) */}
+              <Paper sx={{ p: 5, borderRadius: 0, bgcolor: '#111827', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <Typography variant="h6" sx={{ color: 'white', mb: 4, fontWeight: 'bold', fontFamily: 'Playfair Display' }}>
+                  {lang === 'RU' ? 'Аналитика доходов и бронирований' : 'Revenue & Bookings Trend'}
+                </Typography>
+                {/* криволинейный SVG график */}
+                <Box sx={{ position: 'relative', width: '100%', height: 250 }}>
+                  <svg viewBox="0 0 500 200" width="100%" height="100%" style={{ overflow: 'visible' }}>
+                    <defs>
+                      <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#c1a37f" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#c1a37f" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="0" y1="50" x2="500" y2="50" stroke="rgba(255,255,255,0.05)" />
+                    <line x1="0" y1="100" x2="500" y2="100" stroke="rgba(255,255,255,0.05)" />
+                    <line x1="0" y1="150" x2="500" y2="150" stroke="rgba(255,255,255,0.05)" />
+                    {/* Область под графиком */}
+                    <path d="M 0 170 Q 120 120 220 140 T 420 50 L 500 40 L 500 200 L 0 200 Z" fill="url(#chartGlow)" />
+                    {/* Линия тренда */}
+                    <path d="M 0 170 Q 120 120 220 140 T 420 50 L 500 40" fill="none" stroke="#c1a37f" strokeWidth="4" strokeLinecap="round" />
+                    {/* Точки на графике */}
+                    <circle cx="220" cy="140" r="6" fill="#ffffff" stroke="#c1a37f" strokeWidth="3" />
+                    <circle cx="420" cy="50" r="6" fill="#ffffff" stroke="#c1a37f" strokeWidth="3" />
+                  </svg>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'grey.500', mt: 2, px: 1 }}>
+                  <Typography variant="caption">01.06</Typography>
+                  <Typography variant="caption">03.06</Typography>
+                  <Typography variant="caption">05.06</Typography>
+                  <Typography variant="caption">07.06</Typography>
+                  <Typography variant="caption">08.06 (Сегодня)</Typography>
+                </Box>
+              </Paper>
+
+              {/* Правый блок: Популярность дополнительных услуг */}
+              <Paper sx={{ p: 5, borderRadius: 0, bgcolor: '#111827', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <Typography variant="h6" sx={{ color: 'white', mb: 4, fontWeight: 'bold', fontFamily: 'Playfair Display' }}>
+                  {lang === 'RU' ? 'Дополнительные услуги (Продажи)' : 'Service Sales Split'}
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+                  {dashboardStats.serviceStats.map(stat => {
+                    const maxQty = Math.max(...dashboardStats.serviceStats.map(s => s.qty)) || 1;
+                    const percent = Math.round((stat.qty / maxQty) * 100);
+                    return (
+                      <Box key={stat.name}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'white' }}>
+                            {serviceTranslationMap[stat.name] || stat.name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#c1a37f', fontWeight: 'bold' }}>
+                            {stat.qty} {lang === 'RU' ? 'ед.' : 'pcs'} ({formatPrice(stat.revenue, currency, lang)})
+                          </Typography>
+                        </Box>
+                        <Box sx={{ width: '100%', height: 6, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 0 }}>
+                          <Box sx={{ width: `${percent}%`, height: '100%', bgcolor: '#c1a37f', borderRadius: 0, transition: 'width 0.8s ease' }} />
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Paper>
+            </Box>
+
+            {/* Ряд 3: Загрузка мастеров массажа  */}
+            <Paper sx={{ p: 5, borderRadius: 0, bgcolor: '#111827', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 4, fontWeight: 'bold', fontFamily: 'Playfair Display' }}>
+                {lang === 'RU' ? 'Эффективность мастеров (Записи на сеансы)' : 'Massage Specialists Load'}
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 4 }}>
+                {dashboardStats.massageStats.map(spec => (
+                  <Box key={spec.id} sx={{ p: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'white', mb: 2 }}>
+                      {spec.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#10b981', fontFamily: 'Playfair Display' }}>
+                          {spec.active}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'grey.500', display: 'block' }}>
+                          {lang === 'RU' ? 'Активные' : 'Active'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ width: '1px', height: 40, bgcolor: 'rgba(255,255,255,0.1)' }} />
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff5e97', fontFamily: 'Playfair Display' }}>
+                          {spec.completed}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'grey.500', display: 'block' }}>
+                          {lang === 'RU' ? 'Завершенные' : 'Completed'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+
+          </Box>
+        )}
+
+        {/* --- ВКЛАДКА 7: админ панель --- */}
+        {tabValue === 'admin' && user?.role === 'Admin' && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
             {/* Карточка 1: Управление пользователями */}
             <Paper sx={{ p: 5, borderRadius: 0 }}>
               <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 4, fontFamily: 'Playfair Display', fontWeight: 'bold' }}>

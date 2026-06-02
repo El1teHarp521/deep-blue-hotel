@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, Container, Typography, CardMedia, Button, Divider, Paper, 
-  Table, TableBody, TableCell, TableContainer, TableRow, Dialog, DialogTitle, DialogContent, MenuItem, Select, Alert 
+  Table, TableBody, TableCell, TableContainer, TableRow, Dialog, DialogTitle, DialogContent, MenuItem, Select, Alert, Chip 
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -15,19 +15,30 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
 
   const [openMassageModal, setOpenMassageModal] = useState(false);
   const [massageAlert, setMassageAlert] = useState(null);
-  
-  const getTodayDateString = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
+  const getTomorrowDateString = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const yyyy = tomorrow.getFullYear();
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const dd = String(tomorrow.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const todayStr = getTodayDateString();
-  const [massageDate, setMassageDate] = useState(todayStr);
+  const tomorrowStr = getTomorrowDateString();
+
+  const [massageDate, setMassageDate] = useState(tomorrowStr);
   const [massageTime, setMassageTime] = useState('14:00');
   const [selectedSpecialist, setSelectedSpecialist] = useState(1);
+
+  // Стейт для хранения статусов занятости мастеров массажа
+  const [specialistStatus, setSpecialistStatus] = useState([]);
+  useEffect(() => {
+    if (openMassageModal && massageDate && massageTime) {
+      axios.get(`http://localhost:3003/api/auth/massage/availability?date=${massageDate}&time=${massageTime}`)
+        .then(res => setSpecialistStatus(res.data))
+        .catch(err => console.error("Ошибка загрузки доступности мастеров:", err));
+    }
+  }, [openMassageModal, massageDate, massageTime]);
 
   const handlePurchaseService = async (serviceName) => {
     try {
@@ -48,12 +59,12 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
   // Валидация при выборе даты в календаре
   const handleDateChange = (e) => {
     const val = e.target.value;
-    if (val < todayStr) {
+    if (val < tomorrowStr) {
       setMassageAlert({ 
         type: 'error', 
-        text: isRu ? 'Нельзя выбрать прошедшую дату!' : 'Cannot select a past date!' 
+        text: isRu ? 'Запись на массаж возможна только со следующего дня!' : 'Massage booking is only available from tomorrow!' 
       });
-      setMassageDate(todayStr);
+      setMassageDate(tomorrowStr);
     } else {
       setMassageAlert(null);
       setMassageDate(val);
@@ -70,11 +81,12 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
     }
 
     const selectedDate = new Date(massageDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
 
-    if (selectedDate < today) {
-      setMassageAlert({ type: 'error', text: isRu ? 'Вы не можете записаться на прошедшую дату!' : 'You cannot book a past date!' });
+    if (selectedDate < tomorrow) {
+      setMassageAlert({ type: 'error', text: isRu ? 'Вы не можете записаться на прошедшую дату или сегодня!' : 'You cannot book a past date or today!' });
       return;
     }
 
@@ -92,7 +104,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
         setMassageAlert({ type: 'success', text: response.data.message });
         setTimeout(() => {
           setOpenMassageModal(false);
-          setMassageDate(todayStr);
+          setMassageDate(tomorrowStr);
         }, 1500);
       }
     } catch (error) {
@@ -103,7 +115,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
   const showPurchaseBtn = user && ['Guest', 'Employee', 'Admin'].includes(user.role);
 
   return (
-    <Box component="main" sx={{ pt: 22, pb: 10 }}>
+    <Box sx={{ pt: 22, pb: 10 }}>
       <Container maxWidth="xl">
         <Paper sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 0, mb: 10 }}>
           <CardMedia component="img" height="700" image="/images/service-spa-1.jpg" alt="Спа-салон отеля DeepBlue Resort" />
@@ -117,9 +129,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
               <CardMedia component="img" image="/images/service-spa-2.jpg" height="350" alt="Интерьер финской сауны" sx={{ borderRadius: 0 }} />
             </Box>
             <Box sx={{ pl: { lg: 4 } }}>
-              <Typography variant="h1" sx={{ fontSize: '3rem', mb: 3, color: 'text.primary', fontFamily: 'Playfair Display', fontWeight: 'bold' }}>
-                DeepBlue SPA & Бани
-              </Typography>
+              <Typography variant="h3" sx={{ mb: 3, color: 'text.primary', fontFamily: 'Playfair Display' }}>DeepBlue SPA & Бани</Typography>
               <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary', lineHeight: 1.8 }}>
                 {isRu ? 'Погрузитесь в атмосферу термальных источников и традиционных бань курорта. Доступ предоставляется на весь период проживания.' : 'Immerse yourself in thermal pools and saunas. Unlimited access is granted for the entire period of your stay.'}
               </Typography>
@@ -226,9 +236,39 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                   onChange={(e) => setSelectedSpecialist(e.target.value)}
                   sx={{ borderRadius: 0 }}
                 >
-                  <MenuItem value={1}>{isRu ? 'Алия Шарапова' : 'Alia Sharapova'}</MenuItem>
-                  <MenuItem value={2}>{isRu ? 'Карина Воробьева' : 'Karina Vorobieva'}</MenuItem>
-                  <MenuItem value={3}>{isRu ? 'Даниил Царев' : 'Daniil Tsarev'}</MenuItem>
+                  <MenuItem value={1} disabled={specialistStatus.find(s => s.id === 1)?.isOccupied}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <Typography variant="body2">{isRu ? 'Алия Шарапова' : 'Alia Sharapova'}</Typography>
+                      <Chip 
+                        size="small" 
+                        label={specialistStatus.find(s => s.id === 1)?.isOccupied ? (isRu ? 'Занят' : 'Occupied') : (isRu ? 'Свободен' : 'Free')} 
+                        color={specialistStatus.find(s => s.id === 1)?.isOccupied ? 'error' : 'success'} 
+                        sx={{ borderRadius: 0, fontSize: '0.75rem', height: 20 }}
+                      />
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value={2} disabled={specialistStatus.find(s => s.id === 2)?.isOccupied}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <Typography variant="body2">{isRu ? 'Карина Воробьева' : 'Karina Vorobieva'}</Typography>
+                      <Chip 
+                        size="small" 
+                        label={specialistStatus.find(s => s.id === 2)?.isOccupied ? (isRu ? 'Занят' : 'Occupied') : (isRu ? 'Свободен' : 'Free')} 
+                        color={specialistStatus.find(s => s.id === 2)?.isOccupied ? 'error' : 'success'} 
+                        sx={{ borderRadius: 0, fontSize: '0.75rem', height: 20 }}
+                      />
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value={3} disabled={specialistStatus.find(s => s.id === 3)?.isOccupied}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <Typography variant="body2">{isRu ? 'Даниил Царев' : 'Daniil Tsarev'}</Typography>
+                      <Chip 
+                        size="small" 
+                        label={specialistStatus.find(s => s.id === 3)?.isOccupied ? (isRu ? 'Занят' : 'Occupied') : (isRu ? 'Свободен' : 'Free')} 
+                        color={specialistStatus.find(s => s.id === 3)?.isOccupied ? 'error' : 'success'} 
+                        sx={{ borderRadius: 0, fontSize: '0.75rem', height: 20 }}
+                      />
+                    </Box>
+                  </MenuItem>
                 </Select>
               </Box>
 
@@ -240,7 +280,7 @@ export default function SpaPage({ t, currency, lang, user, setUser }) {
                 <input 
                   type="date" 
                   required
-                  min={todayStr}
+                  min={tomorrowStr}
                   value={massageDate} 
                   aria-label={isRu ? 'Выбрать дату записи на массаж' : 'Select massage date'}
                   onChange={handleDateChange}
