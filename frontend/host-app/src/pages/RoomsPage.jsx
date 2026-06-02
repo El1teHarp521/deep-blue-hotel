@@ -37,6 +37,16 @@ export default function RoomsPage({ t, currency, lang }) {
     { id: 'penthouse', title: t.roomPenthouse, img: '/images/room-penthouse-1.jpg', d: t.roomPenthouseDesc, priceRub: 152000 }
   ];
 
+  const currencySymbols = {
+    RUB: '₽',
+    USD: '$',
+    AED: 'AED'
+  };
+  const currentSymbol = currencySymbols[currency] || '$';
+
+  const minPlaceholder = currency === 'RUB' ? 'напр. 15000' : (currency === 'AED' ? 'e.g. 600' : 'e.g. 150');
+  const maxPlaceholder = currency === 'RUB' ? 'напр. 150000' : (currency === 'AED' ? 'e.g. 6000' : 'e.g. 1500');
+
   useEffect(() => {
     const url = checkDate 
       ? `http://localhost:3001/api/rooms?date=${checkDate}` 
@@ -46,6 +56,8 @@ export default function RoomsPage({ t, currency, lang }) {
       .then(res => setDbRooms(res.data))
       .catch(err => console.error("Ошибка загрузки номеров:", err));
   }, [checkDate]);
+
+  // Сброс страницы пагинации на первую при изменении фильтров поиска
   useEffect(() => {
     setPage(1);
   }, [searchTerm, category, minPrice, maxPrice, checkDate]);
@@ -55,9 +67,17 @@ export default function RoomsPage({ t, currency, lang }) {
     const matchesCategory = category === 'all' || cat.id === category;
 
     const priceInRub = cat.priceRub;
-    const usdToRubRate = 90;
-    const convertedMinRub = minPrice === '' ? 0 : parseFloat(minPrice) * usdToRubRate;
-    const convertedMaxRub = maxPrice === '' ? Infinity : parseFloat(maxPrice) * usdToRubRate;
+
+    // Курсы конвертации валют по отношению к рублю
+    const ratesToRub = {
+      RUB: 1,
+      USD: 90,
+      AED: 25
+    };
+
+    const currentRate = ratesToRub[currency] || 1;
+    const convertedMinRub = minPrice === '' ? 0 : parseFloat(minPrice) * currentRate;
+    const convertedMaxRub = maxPrice === '' ? Infinity : parseFloat(maxPrice) * currentRate;
 
     const matchesMinPrice = priceInRub >= convertedMinRub;
     const matchesMaxPrice = priceInRub <= convertedMaxRub;
@@ -65,11 +85,9 @@ export default function RoomsPage({ t, currency, lang }) {
     return matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice;
   });
 
-  // Вычисление количества страниц пагинации
   const pageCount = Math.ceil(filteredCategories.length / itemsPerPage);
   const paginatedCategories = filteredCategories.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  // Вычисление количества оставшихся свободных номеров категории на выбранную дату
   const getFreeRoomsCount = (categoryKey) => {
     const roomsInCat = dbRooms.filter(r => r.category === categoryKey);
     if (roomsInCat.length === 0) return 0;
@@ -125,12 +143,16 @@ export default function RoomsPage({ t, currency, lang }) {
                 <MenuItem value="penthouse">{t.categoryPenthouse}</MenuItem>
               </Select>
             </Box>
+
+            {/*  поля сортировки по цене */}
             <Box>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.priceFrom} ($)</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>
+                {t.priceFrom} ({currentSymbol})
+              </Typography>
               <TextField 
                 fullWidth 
                 type="number" 
-                placeholder="e.g. 100" 
+                placeholder={minPlaceholder} 
                 value={minPrice} 
                 onChange={(e) => setMinPrice(e.target.value)} 
                 size="small" 
@@ -140,11 +162,13 @@ export default function RoomsPage({ t, currency, lang }) {
               />
             </Box>
             <Box>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>{t.priceTo} ($)</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>
+                {t.priceTo} ({currentSymbol})
+              </Typography>
               <TextField 
                 fullWidth 
                 type="number" 
-                placeholder="e.g. 2000" 
+                placeholder={maxPlaceholder} 
                 value={maxPrice} 
                 onChange={(e) => setMaxPrice(e.target.value)} 
                 size="small" 
@@ -153,6 +177,7 @@ export default function RoomsPage({ t, currency, lang }) {
                 }} 
               />
             </Box>
+
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'secondary.main', display: 'block', mb: 1 }}>ПРОВЕРИТЬ НА ДАТУ</Typography>
               <input 
@@ -166,6 +191,8 @@ export default function RoomsPage({ t, currency, lang }) {
             </Box>
           </Box>
         </Paper>
+
+        {/* Сетка карточек с использованием среза пагинации */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr' }, gap: 4 }}>
           {paginatedCategories.map((cat, i) => {
             const freeRoomsCount = getFreeRoomsCount(cat.id);
@@ -184,7 +211,7 @@ export default function RoomsPage({ t, currency, lang }) {
                   {getAvailabilityStatus(cat.id)}
                 </Box>
 
-                {/* Вывод количества оставшихся свободных номеров на выбранную дат */}
+                {/* Вывод количества оставшихся свободных номеров на выбранную дату */}
                 {checkDate && (
                   <Typography variant="body2" sx={{ color: freeRoomsCount > 0 ? 'success.main' : 'error.main', fontWeight: 'bold', mb: 2 }}>
                     {lang === 'RU' 
