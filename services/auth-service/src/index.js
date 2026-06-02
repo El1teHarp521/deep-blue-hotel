@@ -21,7 +21,8 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-//  рейт лимммитер (ограничение запросов)
+
+// рейт лиммитер (огран запросов)
 const rateLimits = new Map();
 
 const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
@@ -46,7 +47,6 @@ const rateLimiter = (limitCount = 100, windowMs = 15 * 60 * 1000) => {
   };
 };
 
-
 // мидлавры двух токенов (ACCESS + REFRESH)
 
 const handleRefresh = async (req, res, next, refreshToken) => {
@@ -64,7 +64,7 @@ const handleRefresh = async (req, res, next, refreshToken) => {
 
     // Выписываем новый Access-токен на 15 минут
     const newAccessToken = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role }, 
+      { userId: user.id, email: user.role, role: user.role }, 
       process.env.JWT_SECRET || 'super_secret_deep_blue_resort_key_2026', 
       { expiresIn: '15m' }
     );
@@ -112,7 +112,7 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-//  настройки swagger (openapi 3.0) 
+// Ннастройки swagger (OPENAPI 3.0) 
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
@@ -145,7 +145,6 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone) => /^\+?[1-9]\d{1,14}$/.test(phone) && phone.length >= 10;
 
-//   маппинг номеров и классов
 const mapCleaningRequest = (req) => {
   const roomMap = {
     '00000000-0000-0000-0000-000000000101': { number: '101', type: 'Стандарт' },
@@ -160,8 +159,6 @@ const mapCleaningRequest = (req) => {
     roomType: room.type
   };
 };
-
-// автоматический сиддинг доп.услуг в бд
 async function seedAdditionalServices() {
   try {
     const count = await prisma.additionalServices.count();
@@ -185,34 +182,8 @@ async function seedAdditionalServices() {
 }
 
 
-// авторизация и регистрация
+//авторизация и регистрация
 
-/**
- * @openapi
- * /api/auth/register:
- *   post:
- *     tags: [Auth]
- *     summary: Регистрация нового пользователя
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, password, firstName, lastName, phone]
- *             properties:
- *               email: { type: string, example: "guest@deepblue.com" }
- *               password: { type: string, example: "123456" }
- *               firstName: { type: string, example: "Иван" }
- *               lastName: { type: string, example: "Иванов" }
- *               phone: { type: string, example: "+79991111112" }
- *               country: { type: string, example: "Россия" }
- *     responses:
- *       201:
- *         description: Пользователь успешно зарегистрирован
- *       400:
- *         description: Некорректные входные данные
- */
 app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { email, password, firstName, lastName, phone, country } = req.body;
 
@@ -246,28 +217,6 @@ app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res)
   }
 });
 
-/**
- * @openapi
- * /api/auth/login:
- *   post:
- *     tags: [Auth]
- *     summary: Вход в учетную запись
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [loginInput, password]
- *             properties:
- *               loginInput: { type: string, example: "guest@deepblue.com" }
- *               password: { type: string, example: "123456" }
- *     responses:
- *       200:
- *         description: Авторизация прошла успешно
- *       400:
- *         description: Неверный логин или пароль
- */
 app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) => {
   const { loginInput, password } = req.body;
 
@@ -294,16 +243,6 @@ app.post('/api/auth/login', rateLimiter(15, 15 * 60 * 1000), async (req, res) =>
   }
 });
 
-/**
- * @openapi
- * /api/auth/me:
- *   get:
- *     tags: [Auth]
- *     summary: Получить информацию о текущем пользователе (Проверка сессии)
- *     responses:
- *       200:
- *         description: Информация успешно получена
- */
 app.get('/api/auth/me', rateLimiter(100, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   try {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
@@ -320,7 +259,7 @@ app.get('/api/auth/me', rateLimiter(100, 15 * 60 * 1000), authenticateToken, asy
         role: user.role,
         phone: user.phone.startsWith('google_') ? '' : user.phone,
         country: user.country || '',
-        balance: parseFloat(user.balance),
+        balance: parseFloat(user.balance.toString()),
         google_linked: user.google_linked,
         google_email: user.google_email || ''
       }
@@ -330,28 +269,6 @@ app.get('/api/auth/me', rateLimiter(100, 15 * 60 * 1000), authenticateToken, asy
   }
 });
 
-/**
- * @openapi
- * /api/auth/profile:
- *   put:
- *     tags: [Auth]
- *     summary: Редактировать данные личного профиля
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               fullName: { type: string, example: "Иван Иванов" }
- *               phone: { type: string, example: "+79991111112" }
- *               country: { type: string, example: "Казахстан" }
- *     responses:
- *       200:
- *         description: Профиль успешно обновлен
- */
 app.put('/api/auth/profile', rateLimiter(50, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { fullName, phone, country } = req.body;
   const names = fullName ? fullName.split(' ') : [];
@@ -366,24 +283,13 @@ app.put('/api/auth/profile', rateLimiter(50, 15 * 60 * 1000), authenticateToken,
   }
 });
 
-/**
- * @openapi
- * /api/auth/logout:
- *   post:
- *     tags: [Auth]
- *     summary: Выйти из аккаунта (Очистить сессию)
- *     responses:
- *       200:
- *         description: Куки успешно очищены
- */
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('deepblue_access');
   res.clearCookie('deepblue_refresh');
   res.json({ success: true });
 });
 
-
-// связка и отвязка GOOGLE OAUTH
+// связика и отвязка GOOGLE OAUTH
 
 app.get('/api/auth/google/url', (req, res) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -490,27 +396,8 @@ app.put('/api/auth/google/unlink', authenticateToken, async (req, res) => {
   }
 });
 
-// карты и платежи
+//карты и платежи
 
-/**
- * @openapi
- * /api/auth/cards:
- *   post:
- *     tags: [Payments]
- *     summary: Привязать новую банковскую карту
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [cardNumber, expireDate]
- *             properties:
- *               cardNumber: { type: string, example: "1111222233334444" }
- *               expireDate: { type: string, example: "12/29" }
- */
 app.post('/api/auth/cards', rateLimiter(20, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { cardNumber, expireDate } = req.body;
   if (!cardNumber || cardNumber.length !== 16) return res.status(400).json({ error: 'Неверный номер карты' });
@@ -525,15 +412,6 @@ app.post('/api/auth/cards', rateLimiter(20, 15 * 60 * 1000), authenticateToken, 
   }
 });
 
-/**
- * @openapi
- * /api/auth/cards:
- *   get:
- *     tags: [Payments]
- *     summary: Получить список привязанных карт пользователя
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/cards', authenticateToken, async (req, res) => {
   try {
     const cards = await prisma.linkedCards.findMany({ where: { user_id: req.user.userId } });
@@ -543,20 +421,6 @@ app.get('/api/auth/cards', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/cards/{id}:
- *   delete:
- *     tags: [Payments]
- *     summary: Удалить привязанную карту
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- */
 app.delete('/api/auth/cards/:id', authenticateToken, async (req, res) => {
   try {
     await prisma.linkedCards.deleteMany({ where: { id: req.params.id, user_id: req.user.userId } });
@@ -566,15 +430,6 @@ app.delete('/api/auth/cards/:id', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/refill:
- *   post:
- *     tags: [Payments]
- *     summary: Пополнить виртуальный баланс аккаунта
- *     security:
- *       - bearerAuth: []
- */
 app.post('/api/auth/refill', rateLimiter(15, 15 * 60 * 1000), authenticateToken, async (req, res) => {
   const { amount, cvc, useLinkedCard, cardNumber, expireDate } = req.body;
   const parsedAmount = parseFloat(amount);
@@ -596,21 +451,12 @@ app.post('/api/auth/refill', rateLimiter(15, 15 * 60 * 1000), authenticateToken,
       prisma.users.update({ where: { id: req.user.userId }, data: { balance: { increment: parsedAmount } } }),
       prisma.transactions.create({ data: { id: crypto.randomUUID(), user_id: req.user.userId, type: 'REFILL', amount: parsedAmount, description: useLinkedCard ? 'Пополнение баланса (привязанная карта)' : 'Пополнение баланса (новая карта)' } })
     ]);
-    res.json({ success: true, newBalance: parseFloat(result[0].balance) });
+    res.json({ success: true, newBalance: parseFloat(result[0].balance.toString()) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @openapi
- * /api/auth/transactions:
- *   get:
- *     tags: [Payments]
- *     summary: Получить историю транзакций пользователя
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/transactions', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.transactions.findMany({ where: { user_id: req.user.userId }, orderBy: { created_at: 'desc' } });
@@ -626,11 +472,11 @@ app.post('/api/auth/bookings/pay-debt', rateLimiter(15, 15 * 60 * 1000), authent
 
   try {
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
-    if (parseFloat(user.balance) < price) {
+    if (parseFloat(user.balance.toString()) < price) {
       return res.status(400).json({ error: 'Недостаточно средств на балансе для покупки услуги' });
     }
 
-    const newBalance = parseFloat(user.balance) - price;
+    const newBalance = parseFloat(user.balance.toString()) - price;
 
     await prisma.$transaction([
       prisma.users.update({ where: { id: req.user.userId }, data: { balance: newBalance } }),
@@ -652,17 +498,9 @@ app.post('/api/auth/bookings/pay-debt', rateLimiter(15, 15 * 60 * 1000), authent
   }
 });
 
-// активные услуги и брони
 
-/**
- * @openapi
- * /api/auth/cleaning/request:
- *   post:
- *     tags: [Guest Services]
- *     summary: Запросить уборку в номер
- *     security:
- *       - bearerAuth: []
- */
+//активные услуги и уборки
+
 app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Admin']), async (req, res) => {
   try {
     const activeBooking = await prisma.bookings.findFirst({
@@ -686,15 +524,6 @@ app.post('/api/auth/cleaning/request', rateLimiter(30, 15 * 60 * 1000), authenti
   }
 });
 
-/**
- * @openapi
- * /api/auth/cleaning/status:
- *   get:
- *     tags: [Guest Services]
- *     summary: Получить статусы всех запрошенных уборок
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.cleaningRequests.findMany({ where: { user_id: req.user.userId }, orderBy: { created_at: 'desc' } });
@@ -704,15 +533,6 @@ app.get('/api/auth/cleaning/status', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/auth/employee/tasks:
- *   get:
- *     tags: [Employee Services]
- *     summary: Получить задачи на сегодня (для персонала)
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   try {
     const schedules = await prisma.employeeSchedules.findMany({
@@ -785,15 +605,6 @@ app.get('/api/auth/employee/tasks', authenticateToken, requireRole(['Employee', 
   }
 });
 
-/**
- * @openapi
- * /api/auth/employee/tasks/{id}/status:
- *   put:
- *     tags: [Employee Services]
- *     summary: Изменить статус рабочей задачи (Сотрудником)
- *     security:
- *       - bearerAuth: []
- */
 app.put('/api/auth/employee/tasks/:id/status', rateLimiter(50, 15 * 60 * 1000), authenticateToken, requireRole(['Employee', 'Admin']), async (req, res) => {
   const { status, isCleaningRequest } = req.body;
   try {
@@ -826,21 +637,13 @@ app.put('/api/auth/employee/tasks/:id/status', rateLimiter(50, 15 * 60 * 1000), 
   }
 });
 
-/**
- * @openapi
- * /api/auth/massage/book:
- *   post:
- *     tags: [Guest Services]
- *     summary: Записаться на сеанс массажа к выбранному мастеру
- *     security:
- *       - bearerAuth: []
- */
 app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
   const { specialistId, date, time } = req.body;
 
   try {
+    // Валидация прошедших дат для массажа
     const today = new Date();
-    today.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0);
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -870,12 +673,11 @@ app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticate
 
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
     const cost = 1200;
-
-    if (parseFloat(user.balance) < cost) {
+    if (parseFloat(user.balance.toString()) < cost) {
       return res.status(400).json({ error: 'Недостаточно средств для записи на массаж.' });
     }
 
-    const newBalance = parseFloat(user.balance) - cost;
+    const newBalance = parseFloat(user.balance.toString()) - cost;
 
     const result = await prisma.$transaction([
       prisma.users.update({ where: { id: req.user.userId }, data: { balance: newBalance } }),
@@ -899,22 +701,13 @@ app.post('/api/auth/massage/book', rateLimiter(15, 15 * 60 * 1000), authenticate
       })
     ]);
 
-    res.json({ success: true, message: 'Запись на массаж успешно подтверждена!', newBalance: parseFloat(result[0].balance) });
+    res.json({ success: true, message: 'Запись на массаж успешно подтверждена!', newBalance: parseFloat(result[0].balance.toString()) });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @openapi
- * /api/auth/massage/my:
- *   get:
- *     tags: [Guest Services]
- *     summary: Получить свои записи на массаж
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.massageBookings.findMany({
@@ -926,16 +719,6 @@ app.get('/api/auth/massage/my', authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-/**
- * @openapi
- * /api/auth/massage/my/{id}:
- *   delete:
- *     tags: [Guest Services]
- *     summary: Отменить запись на массаж (С возвратом средств)
- *     security:
- *       - bearerAuth: []
- */
 app.delete('/api/auth/massage/my/:id', authenticateToken, async (req, res) => {
   try {
     const booking = await prisma.massageBookings.findUnique({
@@ -971,7 +754,7 @@ app.delete('/api/auth/massage/my/:id', authenticateToken, async (req, res) => {
       })
     ]);
 
-    res.json({ success: true, message: 'Запись отменена, 1 200 ₽ возвращены на ваш баланс!', newBalance: parseFloat(result[0].balance) });
+    res.json({ success: true, message: 'Запись отменена, 1 200 ₽ возвращены на ваш баланс!', newBalance: parseFloat(result[0].balance.toString()) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1041,18 +824,8 @@ app.get('/api/auth/employee/guests', authenticateToken, requireRole(['Employee',
   }
 });
 
+// админка
 
-// администратирование 
-
-/**
- * @openapi
- * /api/auth/admin/users:
- *   get:
- *     tags: [Admin]
- *     summary: Получить список всех пользователей системы (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     const users = await prisma.users.findMany();
@@ -1062,15 +835,6 @@ app.get('/api/auth/admin/users', authenticateToken, requireRole(['Admin']), asyn
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/users/{id}/role:
- *   put:
- *     tags: [Admin]
- *     summary: Изменить системную роль пользователя (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.put('/api/auth/admin/users/:id/role', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { role } = req.body;
   try {
@@ -1081,15 +845,6 @@ app.put('/api/auth/admin/users/:id/role', rateLimiter(30, 15 * 60 * 1000), authe
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/users/{id}/block:
- *   put:
- *     tags: [Admin]
- *     summary: Заблокировать / Разблокировать пользователя (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.put('/api/auth/admin/users/:id/block', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { isBlocked } = req.body;
   try {
@@ -1100,15 +855,6 @@ app.put('/api/auth/admin/users/:id/block', rateLimiter(30, 15 * 60 * 1000), auth
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/users/{id}:
- *   delete:
- *     tags: [Admin]
- *     summary: Полностью удалить пользователя (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.delete('/api/auth/admin/users/:id', rateLimiter(30, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     await prisma.users.delete({ where: { id: req.params.id } });
@@ -1118,15 +864,6 @@ app.delete('/api/auth/admin/users/:id', rateLimiter(30, 15 * 60 * 1000), authent
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/tasks:
- *   get:
- *     tags: [Admin]
- *     summary: Получить список всех задач и запросов уборок (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/admin/tasks', authenticateToken, requireRole(['Admin']), async (req, res) => {
   try {
     const cleaningRequests = await prisma.cleaningRequests.findMany({ orderBy: { created_at: 'desc' } });
@@ -1137,15 +874,6 @@ app.get('/api/auth/admin/tasks', authenticateToken, requireRole(['Admin']), asyn
   }
 });
 
-/**
- * @openapi
- * /api/auth/admin/tasks/assign:
- *   post:
- *     tags: [Admin]
- *     summary: Назначить задачу на конкретного сотрудника (Admin Only)
- *     security:
- *       - bearerAuth: []
- */
 app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authenticateToken, requireRole(['Admin']), async (req, res) => {
   const { taskId, employeeId } = req.body;
   try {
@@ -1159,20 +887,10 @@ app.post('/api/auth/admin/tasks/assign', rateLimiter(50, 15 * 60 * 1000), authen
   }
 });
 
+// доп услуги 
 
-// дополнительные услуги и сиддинг
-
-/**
- * @openapi
- * /api/auth/services/purchase:
- *   post:
- *     tags: [Payments]
- *     summary: Добавить дополнительную услугу в счет проживания
- *     security:
- *       - bearerAuth: []
- */
 app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authenticateToken, requireRole(['Guest', 'Employee', 'Admin']), async (req, res) => {
-  const { serviceName, quantity } = req.body;
+  const { serviceName, quantity, days } = req.body;
   const qty = parseInt(quantity) || 1;
 
   if (qty <= 0) {
@@ -1183,7 +901,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
   try {
     const service = await prisma.additionalServices.findUnique({ where: { name: normalizedServiceName } });
     if (!service) return res.status(404).json({ error: `Услуга "${serviceName}" не найдена в базе данных.` });
-
     const activeBooking = await prisma.bookings.findFirst({
       where: { user_id: req.user.userId, booking_status: 'Confirmed' },
       orderBy: { created_at: 'desc' }
@@ -1192,7 +909,6 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
     if (!activeBooking) {
       return res.status(400).json({ error: 'Приобретать дополнительные услуги могут только гости с активным бронированием.' });
     }
-
     const room = await prisma.rooms.findFirst({ 
       where: { id: activeBooking.room_id } 
     });
@@ -1202,12 +918,10 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
     }
 
     const roomCategory = room.category ? room.category.trim().toLowerCase() : 'none';
-
     const stayNights = Math.ceil((new Date(activeBooking.check_out) - new Date(activeBooking.check_in)) / (1000 * 60 * 60 * 24)) || 1;
 
-    // блокировка повторных покупок
+    // 3. блокировка повторных покупок
     if (normalizedServiceName !== 'massage' && normalizedServiceName !== 'cyber') {
-      
       if (normalizedServiceName !== 'parking') {
         const alreadyPurchased = await prisma.userServices.findFirst({
           where: { user_id: req.user.userId, service_id: service.id }
@@ -1266,16 +980,17 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
 
     // 4. Списание средств и проведение транзакции
     const user = await prisma.users.findUnique({ where: { id: req.user.userId } });
-    let cost = parseFloat(service.price) * qty;
-    if (normalizedServiceName === 'parking') {
-      cost = parseFloat(service.price) * qty * stayNights;
-    }
+    let cost = parseFloat(service.price.toString()) * qty;
+    const parkingDays = parseInt(days) || stayNights;
 
-    if (parseFloat(user.balance) < cost) {
+    if (normalizedServiceName === 'parking') {
+      cost = parseFloat(service.price.toString()) * qty * parkingDays;
+    }
+    if (parseFloat(user.balance.toString()) < cost) {
       return res.status(400).json({ error: 'Недостаточно средств на балансе для покупки услуги' });
     }
 
-    const newBalance = parseFloat(user.balance) - cost;
+    const newBalance = parseFloat(user.balance.toString()) - cost;
 
     const result = await prisma.$transaction([
       prisma.users.update({ where: { id: req.user.userId }, data: { balance: newBalance } }),
@@ -1295,27 +1010,18 @@ app.post('/api/auth/services/purchase', rateLimiter(15, 15 * 60 * 1000), authent
           type: 'SERVICE', 
           amount: cost, 
           description: normalizedServiceName === 'parking'
-            ? `Покупка услуги: PARKING (x${qty}) на ${stayNights} сут.`
+            ? `Покупка услуги: PARKING (x${qty}) на ${parkingDays} сут.`
             : `Покупка услуги: ${serviceName.toUpperCase()} (x${qty})` 
         } 
       })
     ]);
 
-    res.json({ success: true, message: 'Услуга добавлена в проживание!', newBalance: parseFloat(result[0].balance) });
+    res.json({ success: true, message: 'Услуга добавлена в проживание!', newBalance: parseFloat(result[0].balance.toString()) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @openapi
- * /api/auth/services/my:
- *   get:
- *     tags: [Payments]
- *     summary: Получить список всех купленных дополнительных услуг
- *     security:
- *       - bearerAuth: []
- */
 app.get('/api/auth/services/my', authenticateToken, async (req, res) => {
   try {
     const list = await prisma.userServices.findMany({
