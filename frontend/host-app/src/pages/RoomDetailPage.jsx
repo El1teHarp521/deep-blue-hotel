@@ -13,7 +13,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import { formatPrice } from '../utils/price';
 import axios from 'axios';
 
-export default function RoomDetailPage({ t, currency, lang }) {
+export default function RoomDetailPage({ t, currency, lang, user, setOpenAuth }) {
   const { roomType } = useParams();
   const navigate = useNavigate();
 
@@ -29,7 +29,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
   const [checkOut, setCheckOut] = useState('');
   const [guestsCount, setGuestsCount] = useState(1);
 
-  // Стейт для принятия пользовательского соглашения
+  // Стейт для принятия пользовательского соглашения 
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Стейты для карт оплаты
@@ -110,6 +110,14 @@ export default function RoomDetailPage({ t, currency, lang }) {
     const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     return details.priceRub * nights;
   };
+  const handleBookClick = () => {
+    if (!user) {
+      setOpenAuth(true)
+    } else {
+      setOpenCheckout(true)
+    }
+  };
+
   const handlePayNowClick = () => {
     setBookingAlert(null);
 
@@ -133,6 +141,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
     setOpenCheckout(false);
     setOpenPaymentModal(true);
   };
+
   const handlePayLaterClick = () => {
     setBookingAlert(null);
 
@@ -193,10 +202,9 @@ export default function RoomDetailPage({ t, currency, lang }) {
       }
     }
   };
-
   const handleNewExpireDateChange = (e) => {
     const val = e.target.value;
-    const clean = val.replace(/\D/g, ''); 
+    const clean = val.replace(/\D/g, '');
     if (clean.length > 2) {
       setNewExpireDate(`${clean.slice(0, 2)}/${clean.slice(2, 4)}`);
     } else {
@@ -281,7 +289,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               <Button 
                 variant="contained" 
                 fullWidth 
-                onClick={() => setOpenCheckout(true)}
+                onClick={handleBookClick}
                 sx={{ bgcolor: '#c1a37f', color: 'white', py: 2, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: '#a68a64' } }}
               >
                 {t.book}
@@ -313,7 +321,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
-            {/* Выбор дат заезда/выезда с блокировкой прошедших */}
+            {/* Выбор дат заезда/выезда с блокировкой дат */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                 {isRu ? 'ДАТА ЗАЕЗДА' : 'CHECK-IN DATE'}
@@ -347,7 +355,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               />
             </Box>
 
-            {/* Выбор количества человек */}
+            {/* Выбор количества человек  */}
             <Box>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'block', mb: 1 }}>
                 {isRu ? 'КОЛИЧЕСТВО ГОСТЕЙ' : 'NUMBER OF GUESTS'}
@@ -366,7 +374,7 @@ export default function RoomDetailPage({ t, currency, lang }) {
               </Select>
             </Box>
 
-            {/* блок пользовательского соглашения */}
+            {/* пользовательское соглашение */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
               <input 
                 type="checkbox" 

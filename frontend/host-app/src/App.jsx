@@ -229,7 +229,9 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage t={t} />} />
           <Route path="/rooms" element={<RoomsPage t={t} currency={currency} lang={lang} />} />
-          <Route path="/rooms/:roomType" element={<RoomDetailPage t={t} currency={currency} lang={lang} />} />
+
+          <Route path="/rooms/:roomType" element={<RoomDetailPage t={t} currency={currency} lang={lang} user={user} setOpenAuth={setOpenAuth} />} />
+          
           <Route path="/restaurants" element={<RestaurantPage t={t} currency={currency} lang={lang} user={user} />} />
           <Route path="/entertainment" element={<EntertainmentPage t={t} currency={currency} lang={lang} user={user} />} />
           <Route path="/spa" element={<SpaPage t={t} currency={currency} lang={lang} user={user} />} />
